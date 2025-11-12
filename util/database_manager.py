@@ -1,10 +1,10 @@
-from util.load_json import load
+from util.utils import load_json
 from util.member_manager import MemberManager
 from sheets.load_profiles import ProfilesData
 from sheets.mod_sheet import SheetEditor
 
-config = load("config.json")
-display = load("en.json")
+config = load_json("config.json")
+display = load_json("en.json")
 
 class FukujinDatabaseManager():
     def __init__(self):

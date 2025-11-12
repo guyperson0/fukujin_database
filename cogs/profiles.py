@@ -2,18 +2,19 @@ import asyncio
 import discord
 import re
 import requests
-from discord.ext import commands
+from discord.ext import commands, tasks
 from traceback import print_exception
 
-from util.load_json import load
+from util.utils import load_json, timestamp_print
 
-config = load("config.json")
-display = load("en.json")
+config = load_json("config.json")
+display = load_json("en.json")
 
 class Profiles(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.database = bot.database
+        self.auto_update_database.start()
 
         self.user_locks = {}
         self.chara_locks = {}
@@ -230,6 +231,11 @@ class Profiles(commands.Cog):
             self.database.change_theurgia_gauge(search_id, left, right)
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
+
+    @tasks.loop(minutes=10.0)
+    async def auto_update_database(self):
+        timestamp_print("Automatically updating database!")
+        self.bot.database.push_updates()
 
     async def __assemble_profile(self, profile, search_type, search_fields):
         if search_fields:

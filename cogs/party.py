@@ -1,11 +1,11 @@
 import discord
 from discord.ext import commands
 
-from util.load_json import load
+from util.utils import load_json
 import sheets.load_party_info
 
-config = load("config.json")
-display = load("en.json")
+config = load_json("config.json")
+display = load_json("en.json")
 
 class Party(commands.Cog):
     def __init__(self, bot):

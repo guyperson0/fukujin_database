@@ -1,5 +1,6 @@
 from sheets.load_sheet import LoadSheet
 from googleapiclient.discovery import build
+from util.utils import timestamp_print
 
 class SheetEditor(LoadSheet):
     def __init__(self, spreadsheet_id, sheet_name, sheet_range):
@@ -9,10 +10,10 @@ class SheetEditor(LoadSheet):
 
     def update_sheet(self, majorDimension="ROWS"):
         if not self.values_edited:
-            print("No changes made since sheet was last loaded; cancelling update.")
+            timestamp_print("No changes made since sheet was last loaded; cancelling update.")
             return
         else:
-            print("Updating sheet!")
+            timestamp_print("Updating sheet!")
 
         service = build("sheets", "v4", credentials=self.get_creds())
 
@@ -31,7 +32,7 @@ class SheetEditor(LoadSheet):
                 ]
             }
         ).execute()
-        print("Sheet has been updated! I hope...")
+        timestamp_print("Sheet has been updated! I hope...")
 
         self.values = self.load_sheet()
         self.values_edited = False

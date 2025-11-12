@@ -1,4 +1,4 @@
-from util.load_json import load
+from util.utils import load_json
 
 class MemberManager():
     def __init__(self):
@@ -6,8 +6,8 @@ class MemberManager():
         self.load_members()
 
     def load_members(self) -> None :
-        members = load("member_info.json")
-        config = load("config.json")
+        members = load_json("member_info.json")
+        config = load_json("config.json")
 
         for id in members:
             self.member_list[str(id)] = {
