@@ -1,0 +1,27 @@
+{
+    "persona": "[{arcana}] {persona}",
+    "affinities": "{affinities}",
+    "stats": "{strength} Str | {magic} Mag | {agility} Agi | {endurance} En | {luck} Lu",
+    "stats_custom": "{strength} Str | {magic} Mag | {agility} Agi | {endurance} En | {luck} Lu | {custom_value} {custom_stat}",
+    "theurgy_title": "Theurgia ~ {prefix} {charge} / {max} {suffix}",
+    "theurgy_title_basic": "Theurgia",
+    "theurgy_skill": "{name} {{ {effect} }}",
+    "accessory": "{name} ({effect})",
+    "weapon": "{name} ({type} - {element} Type; {power} power, {effect})",
+    "weapon_basic": "{name} ({type} - {element} Type; {power} power)",
+    "skill": "{name} ({effect})",
+    "team_skill": "{name} ({effect})",
+    "skill_bullet": "❖ ",
+    "team_skill_bullet": "❖ ",
+    "pending_stat": "**{pending}** Stat Points to allocate",
+    "pending_footer": "Pending: {stats} Stat Points | {other}",
+    "empty": "None",
+    "neutral": "Neutral to All",
+
+    "party_name": "{party_name}",
+    "party_level": "Level {party_level} ~ Rank {party_rank}",
+    "party_exp": "EXP: {exp}",
+    "party_hp": "Base HP: {hp}",
+    "party_stats": "Base Stats: {stats}",
+    "party_lunacy": "Lunacy: {lunacy}"
+}

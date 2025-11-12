@@ -1,0 +1,51 @@
+import os
+from discord.ext import commands
+
+class Admin(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+    
+    @commands.command(name='sync')
+    @commands.is_owner()
+    async def push_updates(self, ctx):
+        print("Pushing updates from admin command push_updates!")
+        self.bot.database.push_updates()
+        await ctx.reply("UPDATES HAVE BEEN COMMITTED TO THE DATABASE.")
+
+    @commands.command(hidden=True)
+    @commands.is_owner()
+    async def load(self, ctx, cog_name):
+        await self.bot.load_extension(f"cogs.{cog_name}")
+        await ctx.reply(f"LOADED `{cog_name}`.", mention_author=False)
+        print(f"Loaded {cog_name}.")
+        print(f"Loaded commands: {', '.join([command.name for command in self.bot.commands])}")
+
+    @commands.command(hidden=True)
+    @commands.is_owner()
+    async def unload(self, ctx, cog_name):
+        await self.bot.unload_extension(f"cogs.{cog_name}")
+        await ctx.reply(f"UNLOADED `{cog_name}`", mention_author=False)
+        print(f"Unloaded {cog_name}.")
+        print(f"Loaded commands: {', '.join([command.name for command in self.commands])}")
+
+    @commands.command(hidden=True)
+    @commands.is_owner()
+    async def reload(self, ctx, cog_name):
+        await self.bot.reload_extension(f"cogs.{cog_name}")
+        await ctx.reply(f"RELOADED `{cog_name}`", mention_author=False)
+        print(f"Reloaded {cog_name}.")
+        print(f"Loaded commands: {', '.join([command.name for command in self.bot.commands])}")
+
+    @commands.command(hidden=True)
+    @commands.is_owner()
+    async def reloadall(self, ctx):
+        for filename in os.listdir("./cogs"):
+            if filename.endswith(".py"):
+                cog_name = os.path.splitext(filename)[0]
+                print(f"Attempting to reload {cog_name}.")
+                await self.bot.reload_extension(f"cogs.{cog_name}")
+        await ctx.reply(f"RELOADED ALL COGS", mention_author=False)
+        print(f"Loaded commands: {', '.join([command.name for command in self.bot.commands])}") 
+
+async def setup(bot):
+    await bot.add_cog(Admin(bot))

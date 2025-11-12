@@ -1,0 +1,14 @@
+{
+    "prefix": "py.",
+    "spreadsheet_id": "",
+    "player_data_sheet_name": "",
+    "player_data_sheet_range": "",
+    "party_data_sheet_name": "",
+    "party_data_sheet_range": "",
+    "player_moddable_sheet_name": "",
+    "player_moddable_sheet_range": "",
+    "admin": [
+        "123456789987654321",
+        "111111111111111111"
+    ]
+}

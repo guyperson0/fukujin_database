@@ -1,0 +1,7 @@
+token.json
+sheets_token.json
+credentials.json
+config.json
+member_info.json
+media
+**/__pycache__
