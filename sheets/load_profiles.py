@@ -10,34 +10,12 @@ class ProfilesData(LoadSheet):
 
     def load_profile_data(self):
         data = self.load_sheet()
-        fields = data[0]
-        profiles = {}
-
-        # Construct profile dicts
-        for row in data[1:]:
-            if len(row) == 0 or not row[0]:
-                continue
-
-            profile = {}
-            for i in range(len(fields)):
-                # first field should always be ID
-                if i == 0:
-                    continue
-
-                field = fields[i]
-
-                # unfilled field
-                if len(row) <= i:
-                    profile[field] = ""
-                else:
-                    if field in ["SKILLS", "TEAM_SKILLS"] and row[i]:
-                        profile[field] = construct_skills(row[i])
-                    else:
-                        profile[field] = row[i]
-
-            profiles[row[0]] = profile
         
-        self.profiles = profiles
+        for record in data:
+            record["SKILLS"] = construct_skills(record["SKILLS"])
+            record["TEAM_SKILLS"] = construct_skills(record["TEAM_SKILLS"])
+
+        self.profiles = dict(zip([r['ID'] for r in data], data))
 
     def get_profile(self, id) -> dict:
         return self.profiles[id.lower()].copy()
@@ -70,6 +48,12 @@ class ProfilesData(LoadSheet):
                         show_hidden
                 ]
 
+    def load_sheet(self):
+        return self.gc.open_by_key(self.spreadsheet_id).worksheet(self.sheet_name).get_all_records()
+
 def construct_skills(skills : str):
-    skill_list = list(map((lambda x: x.split(":")), skills.split("~")))
+    if skills:
+        skill_list = list(map((lambda x: x.split(":")), skills.split("~")))
+    else: 
+        skill_list = [["N/A", "None"]]
     return skill_list
