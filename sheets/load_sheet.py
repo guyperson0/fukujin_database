@@ -1,5 +1,4 @@
 import gspread
-from pathlib import WindowsPath
 
 # https://developers.google.com/workspace/sheets/api/quickstart/python
 # https://docs.gspread.org/en/v6.1.4/user-guide.html
