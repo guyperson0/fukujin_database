@@ -4,4 +4,5 @@ credentials.json
 config.json
 member_info.json
 media
-**/__pycache__
+**/__pycache__  
+.idea
