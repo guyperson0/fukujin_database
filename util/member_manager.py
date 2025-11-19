@@ -10,7 +10,7 @@ class MemberManager():
         config = load_json("config.json")
 
         for id in members:
-            self.member_list[str(id)] = {
+            self.member_list[id] = {
                 "access": members[id],
                 "admin": int(id) in config["admin"]
             }
@@ -19,7 +19,7 @@ class MemberManager():
         return str(id) in self.member_list
 
     def is_admin(self, id) -> bool :
-        return self.member_list[str(id)]["admin"]
+        return self.is_member(id) and self.member_list[str(id)]["admin"]
 
     def has_edit_access(self, member_id, chara_id) -> bool :
         return (
@@ -28,7 +28,8 @@ class MemberManager():
         ) or self.is_admin(member_id)
 
     def get_default_chara_id(self, member_id) -> str :
-        if not self.is_member(member_id) or not self.member_list[str(member_id)]["access"]:
+        member_id = str(member_id)
+        if not self.is_member(member_id) or not self.member_list[member_id]["access"]:
             raise KeyError(f"No default character for {member_id}")
         
-        return self.member_list[str(member_id)]["access"][0].lower()
+        return self.member_list[member_id]["access"][0].lower()

@@ -305,11 +305,11 @@ class Profiles(commands.Cog):
             
             debug_print(ctx, search_id=search_id)
 
-    async def permission_checks(self, ctx, user_id, search_id):
+    async def permission_checks(self, ctx, user_id, search_id, need_edit_access = True):
         if not self.database.exists_and_accessible(user_id, search_id):
             await send_error(ctx, "INVALID IDENTIFIER", f"THE ID `{search_id}` IS NOT VALID OR ACCESSIBLE.")
             return False
-        elif not self.database.members.has_edit_access(user_id, search_id):
+        elif need_edit_access and not self.database.members.has_edit_access(user_id, search_id):
             await send_error(ctx, "INSUFFICIENT PERMISSION", f"YOU DO NOT HAVE PERMISSION TO ACCESS THE PROFILE `{search_id}`")
             return False
         
