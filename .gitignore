@@ -8,5 +8,6 @@ media
 .idea
 sheets/credentials
 
+test.py
 secretsanta.*
 secret_santa_*
