@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 from util.utils import load_json
-import sheets.load_party_info
+from sheets.load_party_info import PartyData
 
 config = load_json("config.json")
 display = load_json("en.json")
@@ -10,16 +10,17 @@ display = load_json("en.json")
 class Party(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.party = sheets.load_party_info.PartyData(
+        self.party = PartyData(
+            self.bot.gc,
             config['spreadsheet_id'], 
-            config['party_data_sheet_name'], 
-            config['party_data_sheet_range']
+            config['party_data_sheet_name']
         )
 
     @commands.command()
     async def partyinfo(self, ctx):
         try:
             data = self.party.get_party_info()
+            print(data)
             colour = discord.Colour.from_str(data["COLOR"]) if data["COLOR"] else discord.Colour.random()
 
             var_embed = discord.Embed(

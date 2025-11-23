@@ -1,24 +1,14 @@
-from googleapiclient.errors import HttpError
 from sheets.load_sheet import LoadSheet
 
 class PartyData(LoadSheet):
-    def __init__(self, spreadsheet_id, sheet_name, sheet_range):
-        super().__init__(spreadsheet_id, sheet_name, sheet_range)
+    def __init__(self, account, spreadsheet_id, sheet_name):
+        super().__init__(account, spreadsheet_id, sheet_name)
         self.party_info = None
         self.load_party_data()
 
     def load_party_data(self):
-        try:
-            data = self.load_sheet()
-            party_info = {}
-
-            for row in data:
-                if row:
-                    party_info[row[0]] = row[1]
-            
-            self.party_info = party_info
-        except HttpError as err:
-            print(err)
-    
+        data = self.load_values()
+        self.party_info = dict(data)
+        
     def get_party_info(self):
         return self.party_info.copy()

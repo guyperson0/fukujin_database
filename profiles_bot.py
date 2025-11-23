@@ -1,11 +1,9 @@
 import os
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 from util.utils import load_json, timestamp_print, print_loaded_commands
 import asyncio
-import schedule
-import time
-import atexit
+import gspread
 from util.database_manager import FukujinDatabaseManager
 
 config = load_json("config.json")
@@ -16,7 +14,8 @@ intents.members = True
 intents.message_content = True
 
 bot = commands.Bot(command_prefix=config["prefix"], intents=intents, owner_id=403778633086271489)
-bot.database = FukujinDatabaseManager()
+bot.gc = gspread.service_account(filename="sheets/credentials/service_account.json")
+bot.database = FukujinDatabaseManager(bot.gc)
 
 @bot.event
 async def on_ready():

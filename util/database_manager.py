@@ -7,16 +7,18 @@ config = load_json("config.json")
 display = load_json("en.json")
 
 class FukujinDatabaseManager():
-    def __init__(self):
+    def __init__(self, account):
+        self.gc = account
+
         self.profiles = ProfilesData(
+            self.gc,
             config['spreadsheet_id'], 
-            config['player_data_sheet_name'], 
-            config['player_data_sheet_range']
+            config['player_data_sheet_name']
         )
         self.editor = SheetEditor(
+            self.gc,
             config['spreadsheet_id'],
-            config['player_moddable_sheet_name'],
-            config['player_moddable_sheet_range']
+            config['player_moddable_sheet_name']
         )
         self.members = MemberManager()
 
@@ -86,7 +88,7 @@ class FukujinDatabaseManager():
         })
 
     def edit_values(self, search_id, update_values : dict):
-        self.profiles.edit_values(search_id, update_values)
+        self.profiles.update_values(search_id, update_values)
         self.editor.edit_values(search_id, update_values)
 
     def push_updates(self):

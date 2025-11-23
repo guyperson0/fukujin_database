@@ -1,9 +1,8 @@
 import json
 import os
 import time
-from datetime import datetime
 
-def load_json(filename, encoding="utf8"):
+def load_json(filename, encoding="utf8") -> dict:
     script_dir = os.path.abspath(os.curdir)
     abs_file_path = os.path.join(script_dir, filename)
     with open(abs_file_path, 'r', encoding=encoding) as f:

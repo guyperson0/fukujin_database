@@ -7,3 +7,6 @@ media
 **/__pycache__  
 .idea
 sheets/credentials
+
+secretsanta.*
+secret_santa_*

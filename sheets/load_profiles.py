@@ -1,15 +1,15 @@
 from sheets.load_sheet import LoadSheet
 
 class ProfilesData(LoadSheet):
-    def __init__(self, spreadsheet_id, sheet_name, sheet_range):
-        super().__init__(spreadsheet_id, sheet_name, sheet_range)
+    def __init__(self, account, spreadsheet_id, sheet_name):
+        super().__init__(account, spreadsheet_id, sheet_name)
         self.profiles = None
         self.load_profile_data()
 
         self.stat_names = ("STRENGTH", "MAGIC", "AGILITY", "ENDURANCE", "LUCK")
 
     def load_profile_data(self):
-        data = self.load_sheet()
+        data = self.load_records()
         
         for record in data:
             record["SKILLS"] = construct_skills(record["SKILLS"])
@@ -30,10 +30,10 @@ class ProfilesData(LoadSheet):
         id = id.lower()
         return (self.get_value(id, x) for x in self.stat_names)
 
-    def edit_value(self, id, stat, value):
+    def update_value(self, id, stat, value):
         self.profiles[id].update(stat, value)
 
-    def edit_values(self, id, update_values):
+    def update_values(self, id, update_values):
         self.profiles[id].update(update_values)
 
     def exists(self, id) -> bool:
@@ -47,9 +47,6 @@ class ProfilesData(LoadSheet):
                     if (self.get_value(x, "HIDDEN") == "FALSE") or 
                         show_hidden
                 ]
-
-    def load_sheet(self):
-        return self.gc.open_by_key(self.spreadsheet_id).worksheet(self.sheet_name).get_all_records()
 
 def construct_skills(skills : str):
     if skills:
