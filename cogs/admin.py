@@ -20,6 +20,13 @@ class Admin(commands.Cog):
         self.bot.database.push_updates()
         await ctx.reply("UPDATES HAVE BEEN COMMITTED TO THE DATABASE.")
 
+    @commands.command(name='clear')
+    @commands.is_owner()
+    async def abort_updates(self, ctx):
+        timestamp_print("Clearing edits from admin command abort_updates!")
+        self.bot.database.abort_updates()
+        await ctx.reply("UPDATES HAVE BEEN REVERTED.")
+
     @commands.command(hidden=True)
     @commands.is_owner()
     async def load(self, ctx, cog_name):

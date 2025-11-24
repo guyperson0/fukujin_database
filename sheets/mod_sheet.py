@@ -42,3 +42,4 @@ class SheetEditor(LoadSheet):
     def abort_edits(self):
         timestamp_print("Aborting edits...")
         self.pending_update.clear()
+        self.cache = self.load_values()

@@ -38,8 +38,7 @@ class FukujinDatabaseManager():
         base_stats = self.profiles.get_base_stats(search_id)
 
         edits = dict(zip(stat_names, (int(i)+j for i,j in zip(base_stats, add_stats))))
-        edits["STATS_PENDING"] = str(int(self.profiles.get_value(search_id, "STATS_PENDING")) - sum(add_stats))
-
+        
         self.edit_values(search_id, edits)
 
     def exists_and_accessible(self, member_id, search_id):
@@ -93,3 +92,7 @@ class FukujinDatabaseManager():
 
     def push_updates(self):
         self.editor.update_sheet()
+    
+    def abort_updates(self):
+        self.profiles.load_profile_data()
+        self.editor.abort_edits()
