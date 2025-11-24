@@ -7,7 +7,11 @@ class Admin(commands.Cog):
         self.bot = bot
     
     async def cog_check(self, ctx):
-        return await self.bot.is_owner(ctx.author)
+        owner = await self.bot.is_owner(ctx.author)
+        if not owner:
+            await ctx.reply("THIS COMMAND IS RESTRICTED TO BOT ADMINISTRATORS.", mention_author=False)
+        
+        return owner
 
     @commands.command(name='shutdown')
     async def close_bot(self, ctx):
@@ -59,4 +63,5 @@ class Admin(commands.Cog):
         print_loaded_commands(self.bot)
 
 async def setup(bot):
+
     await bot.add_cog(Admin(bot))
