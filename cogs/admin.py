@@ -5,7 +5,14 @@ from util.utils import timestamp_print, print_loaded_commands
 class Admin(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-    
+
+    @commands.command(name='shutdown')
+    @commands.is_owner()
+    async def close_bot(self, ctx):
+        timestamp_print("Closing the script due to shutdown command!")
+        await ctx.reply("POWERING DOWN.", mention_author = False)
+        await self.bot.close()
+        
     @commands.command(name='sync')
     @commands.is_owner()
     async def push_updates(self, ctx):

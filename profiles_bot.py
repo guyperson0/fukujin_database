@@ -34,12 +34,17 @@ async def load_cogs():
 async def main():
     timestamp_print("Starting bot...")
     async with bot:
-        await load_cogs()
-        await bot.start(token)
+        try: 
+            await load_cogs()
+            await bot.start(token)
+        except KeyboardInterrupt:
+            timestamp_print("Shutting down the script due to KeyboardInterrupt!")
+        finally:
+            if not bot.is_closed():
+                await bot.close()
+        
+            timestamp_print("Attempting final update before exiting...")
+            bot.database.push_updates()
+            timestamp_print("Bot closed; good night, world.")
 
-try:
-    asyncio.run(main()) # i'm gonna live
-except KeyboardInterrupt:
-    timestamp_print("Shutting down the script due to KeyboardInterrupt!")
-    timestamp_print("Attempting final update before exiting...")
-    bot.database.push_updates()
+asyncio.run(main())
