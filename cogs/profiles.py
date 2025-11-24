@@ -232,7 +232,7 @@ class Profiles(commands.Cog):
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
-    @tasks.loop(minutes=10.0)
+    @tasks.loop(minutes=20.0)
     async def auto_update_database(self):
         timestamp_print("Automatically updating database!")
         self.bot.database.push_updates()

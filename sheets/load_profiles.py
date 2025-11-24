@@ -31,10 +31,12 @@ class ProfilesData(LoadSheet):
         return (self.get_value(id, x) for x in self.stat_names)
 
     def update_value(self, id, stat, value):
-        self.profiles[id].update(stat, value)
+        self.profiles[id].update_values({stat: value})
 
     def update_values(self, id, update_values):
-        self.profiles[id].update(update_values)
+        profile = self.profiles[id]
+        profile.update(update_values)
+        profile["STATS_PENDING"] = profile["BASE_STATS"] - sum(profile[x] for x in self.stat_names)
 
     def exists(self, id) -> bool:
         return id in self.profiles
