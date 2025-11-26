@@ -6,7 +6,10 @@ class SheetEditor(LoadSheet):
     def __init__(self, account, spreadsheet_id, sheet_name):
         super().__init__(account, spreadsheet_id, sheet_name)
         self.cache = self.load_values()
-        self.pending_update = []
+        self.pending_update = {}
+
+    def has_edits(self):
+        return not len(self.pending_update) == 0
 
     def update_sheet(self):
         if not self.pending_update:
@@ -15,7 +18,7 @@ class SheetEditor(LoadSheet):
         else:
             timestamp_print("Updating sheet!")
 
-        self.get_sheet().update_cells(self.pending_update)
+        self.get_sheet().update_cells([v for k,v in self.pending_update.items()])
         self.pending_update.clear()
 
         timestamp_print("Sheet has been updated! I hope...")
@@ -37,7 +40,7 @@ class SheetEditor(LoadSheet):
         for j in range(len(fields)):
             if fields[j] in update_values:
                 col = j + 1
-                self.pending_update.append(gspread.Cell(row, col, update_values[fields[j]]))
+                self.pending_update[(row, col)] = gspread.Cell(row, col, update_values[fields[j]])
 
     def abort_edits(self):
         timestamp_print("Aborting edits...")

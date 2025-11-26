@@ -3,7 +3,6 @@ from sheets.load_sheet import LoadSheet
 class ProfilesData(LoadSheet):
     def __init__(self, account, spreadsheet_id, sheet_name):
         super().__init__(account, spreadsheet_id, sheet_name)
-        self.profiles = None
         self.load_profile_data()
 
         self.stat_names = ("STRENGTH", "MAGIC", "AGILITY", "ENDURANCE", "LUCK")
@@ -28,7 +27,7 @@ class ProfilesData(LoadSheet):
 
     def get_base_stats(self, id):
         id = id.lower()
-        return (self.get_value(id, x) for x in self.stat_names)
+        return [int(self.get_value(id, x)) for x in self.stat_names]
 
     def update_value(self, id, stat, value):
         self.profiles[id].update_values({stat: value})

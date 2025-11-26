@@ -28,6 +28,9 @@ class FukujinDatabaseManager():
         
         return self.profiles.get_profile(search_id)
             
+    def get_default_profile_id(self, member_id):
+        return self.members.get_default_chara_id(member_id)
+
     def get_profile_ids(self, show_hidden = False):
         return self.profiles.get_profile_ids(show_hidden)
 
@@ -35,14 +38,17 @@ class FukujinDatabaseManager():
         if len(add_stats) != 5:
             raise ValueError("Stats list length must be 5")
         stat_names = self.profiles.stat_names
-        base_stats = self.profiles.get_base_stats(search_id)
+        base_stats = [int(x) for x in self.profiles.get_base_stats(search_id)]
 
-        edits = dict(zip(stat_names, (int(i)+j for i,j in zip(base_stats, add_stats))))
+        edits = dict(zip(stat_names, (i+j for i,j in zip(base_stats, add_stats))))
         
         self.edit_values(search_id, edits)
 
-    def exists_and_accessible(self, member_id, search_id):
-        if not self.profiles.exists:
+    def exists(self, search_id):
+        return self.profiles.exists(search_id)
+
+    def accessible(self, member_id, search_id):
+        if not self.exists(search_id):
             return False
         elif self.profiles.hidden(search_id) and not self.members.has_edit_access(member_id, search_id):
             return False
@@ -89,6 +95,9 @@ class FukujinDatabaseManager():
     def edit_values(self, search_id, update_values : dict):
         self.profiles.update_values(search_id, update_values)
         self.editor.edit_values(search_id, update_values)
+
+    def has_edits(self):
+        return self.editor.has_edits()
 
     def push_updates(self):
         self.editor.update_sheet()

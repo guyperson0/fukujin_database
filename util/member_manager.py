@@ -30,6 +30,6 @@ class MemberManager():
     def get_default_chara_id(self, member_id) -> str :
         member_id = str(member_id)
         if not self.is_member(member_id) or not self.member_list[member_id]["access"]:
-            raise KeyError(f"No default character for {member_id}")
+            return None
         
         return self.member_list[member_id]["access"][0].lower()

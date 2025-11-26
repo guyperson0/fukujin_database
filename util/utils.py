@@ -1,6 +1,9 @@
 import json
 import os
 import time
+import re
+
+color_regex = r'^#?([0-9a-f]{3}){1,2}$' 
 
 def load_json(filename, encoding="utf8") -> dict:
     script_dir = os.path.abspath(os.curdir)
@@ -14,5 +17,10 @@ def timestamp_print(string):
     timestamp = time.strftime("%I:%M %p", time.localtime())
     print("[{0}]".format(timestamp), string)
 
-def print_loaded_commands(bot):
-    timestamp_print(f"Loaded commands: {', '.join([command.name for command in bot.commands])}")
+def match_hex_color(value : str):
+    value = value.lower().strip()
+    value = value if value[0] == '#' else '#' + value
+    return re.fullmatch(color_regex, value)
+
+async def send_error(ctx, header, message):
+    await ctx.reply(f"**ERROR**: {header}\n{message}", mention_author = False)

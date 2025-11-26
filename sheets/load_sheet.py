@@ -6,7 +6,7 @@ import gspread
 # TODO: pass service account and stuff so we can have multiple LoadSheet sub/classes without loading a new one each time
 
 class LoadSheet:
-    def __init__(self, account, spreadsheet_id, sheet_name):
+    def __init__(self, account : gspread.Client, spreadsheet_id, sheet_name):
         self.spreadsheet_id = spreadsheet_id
         self.sheet_name = sheet_name
         self.gc = account

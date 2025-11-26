@@ -1,20 +1,22 @@
 import asyncio
 import discord
-import re
 import requests
-from discord.ext import commands, tasks
-from traceback import print_exception
+import typing
+from discord.ext import commands
 
-from util.utils import load_json, timestamp_print
+from database_bot import DatabaseBot
+from util.utils import *
 
 config = load_json("config.json")
 display = load_json("en.json")
 
+def unhide(input : str):
+    return str.lower(input) == "unhide"
+
 class Profiles(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot : DatabaseBot):
         self.bot = bot
         self.database = bot.database
-        self.auto_update_database.start()
 
         self.user_locks = {}
         self.chara_locks = {}
@@ -22,8 +24,6 @@ class Profiles(commands.Cog):
 
         self.min_display_name_len = 3
         self.max_display_name_len = 32
-        
-        self.color_regex = r'^#?([0-9a-f]{3}){1,2}$' # really hope i wrote this right
         
         self.min_stat_name_len = 1
         self.max_stat_name_len = 16
@@ -36,7 +36,8 @@ class Profiles(commands.Cog):
         self.max_ult_deco_len = 5
     
     @commands.hybrid_command(name="view", with_app_command=True)
-    async def view(self, ctx, search_id=None, search_type="all", *, search_fields=None):
+    async def view(self, ctx : commands.Context, search_id: typing.Optional[str], 
+                   search_type: typing.Optional[str] = "all", *, search_fields: typing.Annotated[str, lambda s: s.lower().split(' ')] = []):
         """Retrieves the profile of a party member
 
         Parameters
@@ -49,73 +50,46 @@ class Profiles(commands.Cog):
             what fields to return, separated by space: "persona", "stats", "theurgia" "equips", "skills", "team_skills"
         
         """
+        
+        search_id = search_id if search_id else self.database.get_default_profile_id(ctx.author.id)
 
-        try:
-            if search_id and not self.database.exists_and_accessible(ctx.author.id, search_id):
-                raise KeyError
+        if not search_id:
+            await send_error(ctx, "NO DEFAULT PROFILE", "NO DEFAULT PROFILE HAS BEEN ASSIGNED TO YOU; PLEASE ENTER A VALID PROFILE ID.")
+            return
 
-            p = self.database.get_profile(ctx.author.id, search_id)
+        if search_id and not self.database.accessible(ctx.author.id, search_id):
+            await send_error(ctx, "NO SUCH PROFILE", f"PROFILE `{search_id}` DOES NOT EXIST.")
+            return
 
-            if not(var_embed := await self.__assemble_profile(p, search_type, search_fields)):
-                return
-
-            await ctx.send(embed=var_embed)
-        except Exception as e:
-            if isinstance(e, KeyError):
-                if not search_id:
-                    await send_error(ctx, "NO DEFAULT PROFILE", "NO DEFAULT PROFILE HAS BEEN ASSIGNED TO YOU. PLEASE ENTER A VALID PROFILE ID.")
-                else:
-                    await send_error(ctx, "NO SUCH PROFILE", f"PROFILE `{search_id}` DOES NOT EXIST.")            
-            elif isinstance(e, SyntaxError):
-                await send_error(ctx, "INVALID SEARCH TYPE", f"SEARCH TYPE `{search_type}` IS INVALID.")            
-            else:
-                print_exception(e)
-                await send_error(ctx, "UNKNOWN", "PLEASE CONTACT ADMINISTRATOR EVOLI SIGIA AS SOON AS POSSIBLE.")
-
-            debug_print(ctx, 
-                        search_id=search_id, 
-                        search_type=search_type, 
-                        search_fields=search_fields
-            )
+        p = self.database.get_profile(ctx.author.id, search_id)
+        _embed = self.__assemble_profile(p, search_type, search_fields)
+        
+        await ctx.reply(embed=_embed, mention_author=False)
 
     @commands.command(name='list')
-    async def list_ids(self, ctx, unhide=""):
-        try:
-            response = "**VALID IDENTIFIERS**: "
+    async def list_ids(self, ctx : commands.Context, unhide: typing.Optional[unhide]):
+        response = "**VALID IDENTIFIERS**: "
 
-            if unhide.lower() == "unhide" and self.database.members.is_admin(ctx.author.id):
-                    response = "ACCESSING HIDDEN IDENTIFIERS...\n" + response
-                    response += create_id_list(
-                        self.database.get_profile_ids(True)
-                    )
-                    await ctx.reply(response, mention_author = False)
-                    return
-            
-            response += create_id_list(
-                        self.database.get_profile_ids()
-                    )
-            
-            await ctx.reply(response, mention_author = False)
-        except Exception as e:
-            print_exception(e)
-            debug_print(ctx, unhide=unhide)
-            await send_error(ctx, "UNKNOWN", "PLEASE CONTACT ADMINISTRATOR EVOLI SIGIA AS SOON AS POSSIBLE.")
+        if unhide and self.database.members.is_admin(ctx.author.id):
+            response = "ACCESSING HIDDEN IDENTIFIERS...\n" + response + create_id_list(self.database.get_profile_ids(True))
+        else:
+            response += create_id_list(self.database.get_profile_ids())
+        
+        await ctx.reply(response, mention_author = False)
 
     @commands.command(name='allocate')
-    async def add_stats(self, ctx, search_id, strength, magic, agility, endurance, luck):
-        base_stats = [int(x) for x in self.database.profiles.get_base_stats(search_id)]
-
-        try:
-            add_stats = (int(strength), int(magic), int(agility), int(endurance), int(luck))
-        except ValueError:
-            await send_error("INVALID INPUT", f"INPUT MUST CONSIST OF ONLY INTEGERS")
-            return
+    async def add_stats(self, ctx : commands.Context, search_id : str, strength : int, magic : int, agility : int, endurance : int, luck : int):
+        add_stats = [strength, magic, agility, endurance, luck]
 
         async def validate():
             total = sum(add_stats)
             pending = int(self.database.profiles.get_value(search_id, "STATS_PENDING"))
-            
-            if total > pending:
+            base_stats = [int(x) for x in self.database.profiles.get_base_stats(search_id)]
+
+            if total == 0:
+                await ctx.reply("VERY FUNNY.", mention_author=False)
+                return False
+            elif total > pending:
                 await send_error(ctx, "TOO MANY STATS ALLOCATED", f"ATTEMPTED TO ALLOCATE `{total}` STATS WITH `{pending}` STATS PENDING")
                 return False
 
@@ -140,7 +114,7 @@ class Profiles(commands.Cog):
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
     @commands.command(name='editname')
-    async def change_display_name(self, ctx, search_id, value):
+    async def change_display_name(self, ctx : commands.Context, search_id : str, value : str):
         
         async def validate():
             return await validate_length(ctx, "DISPLAY NAME", self.min_display_name_len, self.max_display_name_len, value)
@@ -153,7 +127,7 @@ class Profiles(commands.Cog):
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
     @commands.command(name='editicon')
-    async def change_icon(self, ctx, search_id, value = None):
+    async def change_icon(self, ctx : commands.Context, search_id : str, value = None):
         icon_link = None
         
         for file in ctx.message.attachments:
@@ -181,26 +155,23 @@ class Profiles(commands.Cog):
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
     @commands.command(name='editcolor')
-    async def change_color(self, ctx, search_id, value):
-        value = value.lower().strip()
-        if not value[0] == '#':
-            value = '#' + value 
+    async def change_color(self, ctx : commands.Context, search_id : str, value : str):
+        color = match_hex_color(value)
 
         async def validate():
-            if not re.search(self.color_regex, value):
-                await send_error(ctx, "INVALID COLOR", f"INVALID COLOR `{value}` WAS SUPPLIED; PLEASE ENTER A VALID HEXADECIMAL COLO")
-                return False
-            return True
+            if not color:
+                await send_error(ctx, "INVALID COLOR", f"INVALID COLOR `{color}` WAS SUPPLIED; PLEASE ENTER A VALID HEXADECIMAL COLOR")
+            return bool(color)
 
-        confirm_msg = f"CONFIRMING COLOR CHANGE OF `{search_id}` to `{value}`"
+        confirm_msg = f"CONFIRMING COLOR CHANGE OF `{search_id}` to `{color.group()}`"
 
         def edit_database():
-            self.database.change_color(search_id, value)
+            self.database.change_color(search_id, color.group())
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
     @commands.command(name='editcustomstat')
-    async def change_custom_stat(self, ctx, search_id, stat_name, stat_abbrev, stat_value):
+    async def change_custom_stat(self, ctx : commands.Context, search_id : str, stat_name : str, stat_abbrev : str, stat_value : str):
 
         async def validate():
             return (
@@ -217,7 +188,7 @@ class Profiles(commands.Cog):
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
     @commands.command(name='editdecorators')
-    async def change_theurgia(self, ctx, search_id, left, right):
+    async def change_theurgia(self, ctx : commands.Context, search_id : str, left : str, right : str):
         
         async def validate():
             return (
@@ -232,16 +203,8 @@ class Profiles(commands.Cog):
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
-    @tasks.loop(minutes=20.0)
-    async def auto_update_database(self):
-        timestamp_print("Automatically updating database!")
-        self.bot.database.push_updates()
-
-    async def __assemble_profile(self, profile, search_type, search_fields):
-        if search_fields:
-            fields = [x.lower() for x in search_fields.split()]
-        else:
-            fields = []
+    def __assemble_profile(self, profile, search_type, search_fields):
+        search_fields = [x.lower() for x in search_fields]
 
         match search_type.lower():
             case None | "all":
@@ -251,17 +214,17 @@ class Profiles(commands.Cog):
             case "only" | "omit":
                 omit = search_type == "omit"
                 return construct_embed(profile,
-                    persona = ("persona" in fields) ^ omit,
-                    stats = ("stats" in fields) ^ omit,
-                    theurgia = ("theurgia" in fields) ^ omit,
-                    equipment = ("equipment" in fields or "equips" in fields) ^ omit,
-                    persona_skills = ("skills" in fields or "persona_skills" in fields) ^ omit,
-                    team_skills = ("team_skills" in fields) ^ omit
+                    persona = ("persona" in search_fields) ^ omit,
+                    stats = ("stats" in search_fields) ^ omit,
+                    theurgia = ("theurgia" in search_fields) ^ omit,
+                    equipment = ("equipment" in search_fields or "equips" in search_fields) ^ omit,
+                    persona_skills = ("skills" in search_fields or "persona_skills" in search_fields) ^ omit,
+                    team_skills = ("team_skills" in search_fields) ^ omit
                 )
             case _:
-                raise SyntaxError(f"Search type {search_type} unrecognized")
+                return construct_embed(profile)
 
-    async def edit_after_confirm(self, ctx, confirm_message, edit_function, confirm = '✅', reject = '❎', time = 20.0):
+    async def edit_after_confirm(self, ctx : commands.Context, confirm_message : str, edit_function, confirm = '✅', reject = '❎', time = 20.0):
         msg = await ctx.reply(confirm_message, mention_author = False)
         
         await msg.add_reaction(confirm)
@@ -283,7 +246,7 @@ class Profiles(commands.Cog):
             else:
                 await msg.reply("CHANGES ABORTED.")
 
-    async def edit_command(self, ctx, search_id, validate, confirm_msg, edit_database):
+    async def edit_command(self, ctx : commands.Context, search_id : str, validate, confirm_msg : str, edit_database):
         try:
             user_id = ctx.author.id
 
@@ -299,15 +262,12 @@ class Profiles(commands.Cog):
             await self.edit_after_confirm(ctx, confirm_msg, edit_database)
             await self.release_lock(user_id)
         except Exception as e:
-            print_exception(e)
-            await send_error(ctx, "UNKNOWN", "PLEASE CONTACT ADMINISTRATOR EVOLI SIGIA AS SOON AS POSSIBLE.")
             await self.release_lock(user_id)
-            
-            debug_print(ctx, search_id=search_id)
+            await self.bot.on_command_error(ctx, e)
 
-    async def permission_checks(self, ctx, user_id, search_id, need_edit_access = True):
-        if not self.database.exists_and_accessible(user_id, search_id):
-            await send_error(ctx, "INVALID IDENTIFIER", f"THE ID `{search_id}` IS NOT VALID OR ACCESSIBLE.")
+    async def permission_checks(self, ctx : commands.Context, user_id : int, search_id : str, need_edit_access = True):
+        if not self.database.accessible(user_id, search_id):
+            await send_error(ctx, "INVALID IDENTIFIER", f"THE ID `{search_id}` IS INVALID OR ACCESSIBLE.")
             return False
         elif need_edit_access and not self.database.members.has_edit_access(user_id, search_id):
             await send_error(ctx, "INSUFFICIENT PERMISSION", f"YOU DO NOT HAVE PERMISSION TO ACCESS THE PROFILE `{search_id}`")
@@ -315,7 +275,7 @@ class Profiles(commands.Cog):
         
         return True
 
-    async def acquire_lock(self, ctx, user_id, search_id):
+    async def acquire_lock(self, ctx : commands.Context, user_id : int, search_id : str):
         async with self.lock:
             if user_id in self.user_locks:
                 await send_error(ctx, "EDIT IN PROGRESS", f"YOU ARE CURRENTLY EDITING THE PROFILE `{self.user_locks[user_id]}`")
@@ -329,7 +289,7 @@ class Profiles(commands.Cog):
             self.chara_locks[search_id] = user_id
             return True
               
-    async def release_lock(self, user_id):
+    async def release_lock(self, user_id : int):
         async with self.lock:
             if user_id not in self.user_locks:
                 return
@@ -505,43 +465,29 @@ def construct_embed(profile, persona=True, stats=True, theurgia=True, equipment=
     return var_embed
 
 def create_id_list(names : list):
-    ids = ""
-    for i in range(len(names)):
-        if not i == 0:
-            ids += ", "
-        ids += f"`{names[i]}`"
+    return ', '.join(f'`{x}`' for x in names)
 
-    return ids
-
-def debug_print(ctx):
-    print(f"{ctx.author.name} ({ctx.author.id}) encountered error invoking {ctx.invoked_with}:")
-    print(f"\t{ctx.message.content}")
-
-def is_image_link(link):
+def is_image_link(link : str):
     try: 
         r = requests.get(link, timeout=5)
-        print(r.headers['content-type'])
         return r.headers['content-type'] in ('image/jpeg', 'image/png', 'image/gif', 'image/webp')
     except TimeoutError:
         return False
 
-async def send_error(ctx, header, message):
-    await ctx.reply(f"**ERROR**: {header}\n{message}", mention_author = False)
-
-async def validate_length(ctx, field_name, min, max, value):
+async def validate_length(ctx : commands.Context, field_name : str, min : int, max : int, value : int):
     return await validate_size(ctx, min, max, len(value), "INVALID LENGTH", 
                          f"{field_name} `{value}` MUST HAVE LENGTH BETWEEN `{min}` AND `{max}` (CURRENTLY: `{len(value)}`)")
     
-async def validate_add_bound(ctx, field_name, min, max, base, add):
+async def validate_add_bound(ctx : commands.Context, field_name : str, min : int, max : int, base : int, add : int):
     return await validate_size(ctx, min, max, base + add, "INVALID ADDITION", 
-                         f"`{field_name}` MUST BE BETWEEN `{min}` AND `{max}` (ATTEMPTED TO ADD {add} TO {base})")
+                         f"`{field_name}` MUST BE BETWEEN `{min}` AND `{max}` (ATTEMPTED TO ADD `{add}` TO `{base}`)")
         
-async def validate_size(ctx, min, max, value, header, message):
+async def validate_size(ctx : commands.Context, min : int, max : int, value : int, header : str, message : str):
     if value < min or value > max:
         await send_error(ctx, header, message)
         return False
     
     return True
 
-async def setup(bot):
+async def setup(bot : DatabaseBot):
     await bot.add_cog(Profiles(bot))
