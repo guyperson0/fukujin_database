@@ -260,10 +260,10 @@ class Profiles(commands.Cog):
                 return
             
             await self.edit_after_confirm(ctx, confirm_msg, edit_database)
-            await self.release_lock(user_id)
         except Exception as e:
-            await self.release_lock(user_id)
             await self.bot.on_command_error(ctx, e)
+        finally:
+            await self.release_lock(user_id)
 
     async def permission_checks(self, ctx : commands.Context, user_id : int, search_id : str, need_edit_access = True):
         if not self.database.accessible(user_id, search_id):
