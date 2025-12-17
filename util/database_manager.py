@@ -1,33 +1,44 @@
 from util.utils import load_json
 from util.member_manager import MemberManager
 from sheets.load_profiles import ProfilesData
+from sheets.load_party_info import PartyData
 from sheets.mod_sheet import SheetEditor
 
-config = load_json("config.json")
 display = load_json("en.json")
 
+#TODO: case insensitive profile id
+
 class FukujinDatabaseManager():
-    def __init__(self, account):
+    def __init__(self, account, config_path):
         self.gc = account
+        self.config = load_json(config_path)
 
         self.profiles = ProfilesData(
             self.gc,
-            config['spreadsheet_id'], 
-            config['player_data_sheet_name']
+            self.config['spreadsheet_id'], 
+            self.config['player_data_sheet_name']
+        )
+        self.party = PartyData(
+            self.gc,
+            self.config['spreadsheet_id'],
+            self.config['party_data_sheet_name'],
         )
         self.editor = SheetEditor(
             self.gc,
-            config['spreadsheet_id'],
-            config['player_moddable_sheet_name']
+            self.config['spreadsheet_id'],
+            self.config['player_moddable_sheet_name']
         )
-        self.members = MemberManager()
+        self.members = MemberManager(config_path)
 
-    def get_profile(self, member_id, search_id):
-        if not search_id:
-            search_id = self.members.get_default_chara_id(member_id)
-        
+    def get_party_info(self):
+        return self.party.get_party_info()
+
+    def get_profile(self, search_id):
         return self.profiles.get_profile(search_id)
             
+    def get_default_profile(self, member_id):
+        self.get_profile(self.get_default_profile_id(member_id))
+
     def get_default_profile_id(self, member_id):
         return self.members.get_default_chara_id(member_id)
 
@@ -54,6 +65,9 @@ class FukujinDatabaseManager():
             return False
         else:
             return True
+
+    def is_admin(self, member_id):
+        return self.members.is_admin(member_id)
 
     def reset_stats(self, search_id):
         edit_values = {

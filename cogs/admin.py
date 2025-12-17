@@ -6,7 +6,7 @@ from util.utils import timestamp_print
 class Admin(commands.Cog):
     def __init__(self, bot : DatabaseBot):
         self.bot = bot
-        # self.auto_update_database.start()
+        self.auto_update_database.start()
     
     async def cog_check(self, ctx : commands.Context):
         owner = await self.bot.is_owner(ctx.author)

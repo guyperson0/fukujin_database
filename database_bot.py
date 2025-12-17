@@ -6,10 +6,10 @@ from util.utils import timestamp_print, send_error
 from traceback import print_exception
 
 class DatabaseBot(commands.Bot):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, config_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.gc = gspread.service_account(filename="sheets/credentials/service_account.json")
-        self.database = FukujinDatabaseManager(self.gc)
+        self.database = FukujinDatabaseManager(self.gc, f"database_configs/{config_name}.json")
 
     def print_loaded_commands(self):
         timestamp_print(f"Loaded commands: {', '.join([command.name for command in self.commands])}")

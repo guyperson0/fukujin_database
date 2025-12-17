@@ -1,13 +1,14 @@
 from util.utils import load_json
 
 class MemberManager():
-    def __init__(self):
+    def __init__(self, config_path):
+        self.config_path = config_path
         self.member_list = {}
         self.load_members()
 
     def load_members(self) -> None :
-        members = load_json("member_info.json")
-        config = load_json("config.json")
+        config = load_json(self.config_path)
+        members = config["members"]
 
         for id in members:
             self.member_list[id] = {

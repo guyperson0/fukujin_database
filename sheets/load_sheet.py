@@ -3,8 +3,6 @@ import gspread
 # https://developers.google.com/workspace/sheets/api/quickstart/python
 # https://docs.gspread.org/en/v6.1.4/user-guide.html
 
-# TODO: pass service account and stuff so we can have multiple LoadSheet sub/classes without loading a new one each time
-
 class LoadSheet:
     def __init__(self, account : gspread.Client, spreadsheet_id, sheet_name):
         self.spreadsheet_id = spreadsheet_id

@@ -7,7 +7,6 @@ from discord.ext import commands
 from database_bot import DatabaseBot
 from util.utils import *
 
-config = load_json("config.json")
 display = load_json("en.json")
 
 def unhide(input : str):
@@ -21,6 +20,8 @@ class Profiles(commands.Cog):
         self.user_locks = {}
         self.chara_locks = {}
         self.lock = asyncio.Lock()
+
+        self.allow_deallocate = False
 
         self.min_display_name_len = 3
         self.max_display_name_len = 32
@@ -36,8 +37,11 @@ class Profiles(commands.Cog):
         self.max_ult_deco_len = 5
     
     @commands.hybrid_command(name="view", with_app_command=True)
-    async def view(self, ctx : commands.Context, search_id: typing.Optional[str], 
-                   search_type: typing.Optional[str] = "all", *, search_fields: typing.Annotated[str, lambda s: s.lower().split(' ')] = []):
+    async def view(self, ctx : commands.Context, 
+                   search_id: typing.Optional[str], 
+                   search_type: typing.Optional[str] = "omit", 
+                   *, 
+                   search_fields: typing.Annotated[str, lambda s: s.lower().split(' ')] = ["team_skills"]):
         """Retrieves the profile of a party member
 
         Parameters
@@ -61,7 +65,7 @@ class Profiles(commands.Cog):
             await send_error(ctx, "NO SUCH PROFILE", f"PROFILE `{search_id}` DOES NOT EXIST.")
             return
 
-        p = self.database.get_profile(ctx.author.id, search_id)
+        p = self.database.get_profile(search_id)
         _embed = self.__assemble_profile(p, search_type, search_fields)
         
         await ctx.reply(embed=_embed, mention_author=False)
@@ -86,10 +90,16 @@ class Profiles(commands.Cog):
             pending = int(self.database.profiles.get_value(search_id, "STATS_PENDING"))
             base_stats = [int(x) for x in self.database.profiles.get_base_stats(search_id)]
 
-            if total == 0:
+            for x in add_stats:
+                if x != 0:
+                    break
+                elif x < 0 and not (self.database.is_admin(ctx.author) or self.allow_deallocate):
+                    await send_error(ctx, "INSUFFICIENT PERMISSIONS", "YOU DO NOT HAVE PERMISSION TO DEALLOCATE STATS.")
+            else:
                 await ctx.reply("VERY FUNNY.", mention_author=False)
                 return False
-            elif total > pending:
+                
+            if total > pending:
                 await send_error(ctx, "TOO MANY STATS ALLOCATED", f"ATTEMPTED TO ALLOCATE `{total}` STATS WITH `{pending}` STATS PENDING")
                 return False
 

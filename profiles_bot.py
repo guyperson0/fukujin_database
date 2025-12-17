@@ -1,4 +1,5 @@
 import os
+import sys
 import discord
 import asyncio
 
@@ -11,8 +12,6 @@ token = load_json("token.json")["token"]
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
-
-bot = DatabaseBot(command_prefix=config["prefix"], intents=intents, owner_id=config["owner_id"])
 
 async def load_cogs():
     for filename in os.listdir("./cogs"):
@@ -30,6 +29,13 @@ async def main():
         await bot.start(token)
 
 if __name__ == "__main__":
+    try:
+        config_name = sys.argv[1]
+    except IndexError:
+        config_name = "main_config"
+
+    bot = DatabaseBot(config_name=config_name, command_prefix=config["prefix"], intents=intents, owner_id=config["owner_id"])
+
     try:
         asyncio.run(main())
     except KeyboardInterrupt:

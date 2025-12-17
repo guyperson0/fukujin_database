@@ -2,7 +2,7 @@ token.json
 sheets_token.json
 credentials.json
 config.json
-member_info.json
+database_configs/
 media
 **/__pycache__  
 .idea
