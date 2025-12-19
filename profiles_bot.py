@@ -32,7 +32,7 @@ if __name__ == "__main__":
     try:
         config_name = sys.argv[1]
     except IndexError:
-        config_name = "main_config"
+        config_name = "main"
 
     bot = DatabaseBot(config_name=config_name, command_prefix=config["prefix"], intents=intents, owner_id=config["owner_id"])
 

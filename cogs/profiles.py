@@ -15,7 +15,6 @@ def unhide(input : str):
 class Profiles(commands.Cog):
     def __init__(self, bot : DatabaseBot):
         self.bot = bot
-        self.database = bot.database
 
         self.user_locks = {}
         self.chara_locks = {}
@@ -55,17 +54,17 @@ class Profiles(commands.Cog):
         
         """
         
-        search_id = search_id if search_id else self.database.get_default_profile_id(ctx.author.id)
+        search_id = search_id if search_id else self.bot.database.get_default_profile_id(ctx.author.id)
 
         if not search_id:
             await send_error(ctx, "NO DEFAULT PROFILE", "NO DEFAULT PROFILE HAS BEEN ASSIGNED TO YOU; PLEASE ENTER A VALID PROFILE ID.")
             return
 
-        if search_id and not self.database.accessible(ctx.author.id, search_id):
+        if search_id and not self.bot.database.accessible(ctx.author.id, search_id):
             await send_error(ctx, "NO SUCH PROFILE", f"PROFILE `{search_id}` DOES NOT EXIST.")
             return
 
-        p = self.database.get_profile(search_id)
+        p = self.bot.database.get_profile(search_id)
         _embed = self.__assemble_profile(p, search_type, search_fields)
         
         await ctx.reply(embed=_embed, mention_author=False)
@@ -74,10 +73,10 @@ class Profiles(commands.Cog):
     async def list_ids(self, ctx : commands.Context, unhide: typing.Optional[unhide]):
         response = "**VALID IDENTIFIERS**: "
 
-        if unhide and self.database.members.is_admin(ctx.author.id):
-            response = "ACCESSING HIDDEN IDENTIFIERS...\n" + response + create_id_list(self.database.get_profile_ids(True))
+        if unhide and self.bot.database.members.is_admin(ctx.author.id):
+            response = "ACCESSING HIDDEN IDENTIFIERS...\n" + response + create_id_list(self.bot.database.get_profile_ids(True))
         else:
-            response += create_id_list(self.database.get_profile_ids())
+            response += create_id_list(self.bot.database.get_profile_ids())
         
         await ctx.reply(response, mention_author = False)
 
@@ -87,13 +86,13 @@ class Profiles(commands.Cog):
 
         async def validate():
             total = sum(add_stats)
-            pending = int(self.database.profiles.get_value(search_id, "STATS_PENDING"))
-            base_stats = [int(x) for x in self.database.profiles.get_base_stats(search_id)]
+            pending = int(self.bot.database.profiles.get_value(search_id, "STATS_PENDING"))
+            base_stats = [int(x) for x in self.bot.database.profiles.get_base_stats(search_id)]
 
             for x in add_stats:
                 if x != 0:
                     break
-                elif x < 0 and not (self.database.is_admin(ctx.author) or self.allow_deallocate):
+                elif x < 0 and not (self.bot.database.is_admin(ctx.author) or self.allow_deallocate):
                     await send_error(ctx, "INSUFFICIENT PERMISSIONS", "YOU DO NOT HAVE PERMISSION TO DEALLOCATE STATS.")
             else:
                 await ctx.reply("VERY FUNNY.", mention_author=False)
@@ -119,7 +118,7 @@ class Profiles(commands.Cog):
             f"AND `{add_stats[4]} Luck` TO `{search_id}`")
         
         def edit_database():
-            self.database.add_stats_list(search_id, add_stats)
+            self.bot.database.add_stats_list(search_id, add_stats)
         
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
@@ -132,7 +131,7 @@ class Profiles(commands.Cog):
         confirm_msg = f"CONFIRMING DISPLAY CHANGE OF `{search_id}` TO `{value}`."
 
         def edit_database():
-            self.database.change_name(search_id, value)
+            self.bot.database.change_name(search_id, value)
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
@@ -160,7 +159,7 @@ class Profiles(commands.Cog):
         confirm_msg = f"CONFIRMING ICON CHANGE TO THE FOLLOWING IMAGE:\n{icon_link}"
 
         def edit_database():
-            self.database.change_icon(search_id, icon_link)
+            self.bot.database.change_icon(search_id, icon_link)
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
@@ -176,7 +175,7 @@ class Profiles(commands.Cog):
         confirm_msg = f"CONFIRMING COLOR CHANGE OF `{search_id}` to `{color.group()}`"
 
         def edit_database():
-            self.database.change_color(search_id, color.group())
+            self.bot.database.change_color(search_id, color.group())
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
@@ -193,7 +192,7 @@ class Profiles(commands.Cog):
         confirm_msg = f"CONFIRMING CUSTOM STAT CHANGES OF `{search_id}` TO `{stat_name}: {stat_value}` (`{stat_value} {stat_abbrev}`)"
 
         def edit_database():
-            self.database.change_custom_stat(search_id, stat_name, stat_abbrev, stat_value)
+            self.bot.database.change_custom_stat(search_id, stat_name, stat_abbrev, stat_value)
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
@@ -209,7 +208,7 @@ class Profiles(commands.Cog):
         confirm_msg = f"CONFIRMING THEURGY GAUGE DECORATORS: `{left} 2000 / 2000 {right}`"
 
         def edit_database():
-            self.database.change_theurgia_gauge(search_id, left, right)
+            self.bot.database.change_theurgia_gauge(search_id, left, right)
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
@@ -276,10 +275,10 @@ class Profiles(commands.Cog):
             await self.release_lock(user_id)
 
     async def permission_checks(self, ctx : commands.Context, user_id : int, search_id : str, need_edit_access = True):
-        if not self.database.accessible(user_id, search_id):
+        if not self.bot.database.accessible(user_id, search_id):
             await send_error(ctx, "INVALID IDENTIFIER", f"THE ID `{search_id}` IS INVALID OR ACCESSIBLE.")
             return False
-        elif need_edit_access and not self.database.members.has_edit_access(user_id, search_id):
+        elif need_edit_access and not self.bot.database.members.has_edit_access(user_id, search_id):
             await send_error(ctx, "INSUFFICIENT PERMISSION", f"YOU DO NOT HAVE PERMISSION TO ACCESS THE PROFILE `{search_id}`")
             return False
         

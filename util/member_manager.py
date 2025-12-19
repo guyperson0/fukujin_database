@@ -15,7 +15,7 @@ class MemberManager():
                 "access": members[id],
                 "admin": int(id) in config["admin"]
             }
-
+            
     def is_member(self, id) -> bool :
         return str(id) in self.member_list
 

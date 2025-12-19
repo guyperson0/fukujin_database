@@ -11,6 +11,7 @@ display = load_json("en.json")
 class FukujinDatabaseManager():
     def __init__(self, account, config_path):
         self.gc = account
+        self.config_path = config_path
         self.config = load_json(config_path)
 
         self.profiles = ProfilesData(
@@ -112,6 +113,9 @@ class FukujinDatabaseManager():
 
     def has_edits(self):
         return self.editor.has_edits()
+
+    def reload_members(self):
+        self.members.load_members()
 
     def push_updates(self):
         self.editor.update_sheet()

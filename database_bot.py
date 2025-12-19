@@ -9,6 +9,9 @@ class DatabaseBot(commands.Bot):
     def __init__(self, config_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.gc = gspread.service_account(filename="sheets/credentials/service_account.json")
+        self.set_database(config_name)
+        
+    def set_database(self, config_name):
         self.database = FukujinDatabaseManager(self.gc, f"database_configs/{config_name}.json")
 
     def print_loaded_commands(self):

@@ -34,12 +34,12 @@ class Admin(commands.Cog):
         self.bot.database.push_updates()
         await ctx.reply("UPDATES HAVE BEEN COMMITTED TO THE DATABASE.", mention_author = False)
 
-    @commands.command(name='clear', aliases=['abort'])
+    @commands.command(name='clear', aliases=['abort', 'refresh'])
     @commands.is_owner()
     async def abort_updates(self, ctx : commands.Context):
-        timestamp_print("Clearing edits from admin command abort_updates!")
+        timestamp_print("Clearing edits and refreshing from admin command abort_updates!")
         self.bot.database.abort_updates()
-        await ctx.reply("UPDATES HAVE BEEN REVERTED.", mention_author = False)
+        await ctx.reply("REFRESHING DATABASE AND DISCARDING EDITS.", mention_author = False)
 
     @commands.command(hidden=True)
     @commands.is_owner()
@@ -75,6 +75,21 @@ class Admin(commands.Cog):
                 await self.bot.reload_extension(f"cogs.{cog_name}")
         await ctx.reply(f"RELOADED ALL COGS", mention_author=False)
         self.bot.print_loaded_commands()
+
+    @commands.command(hidden=True, name='refreshmembers', aliases=['reloadmembers'])
+    @commands.is_owner()
+    async def refresh_members(self, ctx : commands.Context):
+        self.bot.database.reload_members()
+        await ctx.reply(f"MEMBERS RELOADED.", mention_author=False)
+        
+    @commands.command(hidden=True, name='setdatabase', aliases=['setdb'])
+    @commands.is_owner()
+    async def set_database(self, ctx : commands.Context, config_name):
+        try: 
+            self.bot.set_database(config_name)
+            await ctx.reply(f"SET DATABASE TO `{config_name}`.", mention_author = False)
+        except FileNotFoundError:
+            await ctx.reply(f"NO DATABASE `{config_name}` WAS FOUND.", mention_author=False)
 
 async def setup(bot : commands.Bot):
     await bot.add_cog(Admin(bot))
