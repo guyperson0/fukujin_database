@@ -7,13 +7,6 @@ class Admin(commands.Cog):
     def __init__(self, bot : DatabaseBot):
         self.bot = bot
         self.auto_update_database.start()
-    
-    async def cog_check(self, ctx : commands.Context):
-        owner = await self.bot.is_owner(ctx.author)
-        if not owner:
-            await ctx.reply("THIS COMMAND IS RESTRICTED TO BOT ADMINISTRATORS.", mention_author=False)
-
-        return owner
 
     @tasks.loop(minutes=20.0)
     async def auto_update_database(self):
@@ -22,29 +15,34 @@ class Admin(commands.Cog):
             self.bot.database.push_updates()
     
     @commands.command(name='error')
+    @commands.is_owner()
     async def raise_error(self, ctx : commands.Context):
         ctx.reply("RAISING AN ERROR.", mention_author = False)
         raise Exception("Test exception raised from admin command raise_error")
 
     @commands.command(name='shutdown')
+    @commands.is_owner()
     async def close_bot(self, ctx : commands.Context):
         timestamp_print("Closing the script due to shutdown command!")
         await ctx.reply("POWERING DOWN.", mention_author = False)
         await self.bot.close()
         
     @commands.command(name='sync')
+    @commands.is_owner()
     async def push_updates(self, ctx : commands.Context):
         timestamp_print("Pushing updates from admin command push_updates!")
         self.bot.database.push_updates()
         await ctx.reply("UPDATES HAVE BEEN COMMITTED TO THE DATABASE.", mention_author = False)
 
-    @commands.command(name='clear')
+    @commands.command(name='clear', aliases=['abort'])
+    @commands.is_owner()
     async def abort_updates(self, ctx : commands.Context):
         timestamp_print("Clearing edits from admin command abort_updates!")
         self.bot.database.abort_updates()
         await ctx.reply("UPDATES HAVE BEEN REVERTED.", mention_author = False)
 
     @commands.command(hidden=True)
+    @commands.is_owner()
     async def load(self, ctx : commands.Context, cog_name : str):
         await self.bot.load_extension(f"cogs.{cog_name}")
         await ctx.reply(f"LOADED `{cog_name}`.", mention_author=False)
@@ -52,6 +50,7 @@ class Admin(commands.Cog):
         self.bot.print_loaded_commands()
 
     @commands.command(hidden=True)
+    @commands.is_owner()
     async def unload(self, ctx : commands.Context, cog_name : str):
         await self.bot.unload_extension(f"cogs.{cog_name}")
         await ctx.reply(f"UNLOADED `{cog_name}`", mention_author=False)
@@ -59,6 +58,7 @@ class Admin(commands.Cog):
         self.bot.print_loaded_commands()
 
     @commands.command(hidden=True)
+    @commands.is_owner()
     async def reload(self, ctx : commands.Context, cog_name : str):
         await self.bot.reload_extension(f"cogs.{cog_name}")
         await ctx.reply(f"RELOADED `{cog_name}`", mention_author=False)
@@ -66,6 +66,7 @@ class Admin(commands.Cog):
         self.bot.print_loaded_commands()
 
     @commands.command(hidden=True)
+    @commands.is_owner()
     async def reloadall(self, ctx : commands.Context):
         for filename in os.listdir("./cogs"):
             if filename.endswith(".py"):

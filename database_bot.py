@@ -23,6 +23,8 @@ class DatabaseBot(commands.Bot):
             return
         elif isinstance(e, commands.errors.MissingRequiredArgument):
             await send_error(ctx, "MISSING REQUIRED ARGUMENT", "CHECK THE COMMAND SYNTAX WAS PROPERLY FOLLOWED.")
+        elif isinstance(e, commands.errors.NotOwner):
+            await ctx.reply("THIS COMMAND IS RESTRICTED TO BOT ADMINISTRATORS.", mention_author=False)
         else:
             await send_error(ctx, "UNKNOWN ERROR", "PLEASE CONTACT THE ADMINISTRATOR AS SOON AS POSSIBLE.")
             timestamp_print(f"{ctx.author.name} ({ctx.author.id}) encountered an error invoking:")
