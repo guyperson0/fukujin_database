@@ -1,4 +1,5 @@
 import os
+from discord import Object
 from discord.ext import commands, tasks
 from database_bot import DatabaseBot
 from util.utils import timestamp_print
@@ -27,7 +28,7 @@ class Admin(commands.Cog):
         await ctx.reply("POWERING DOWN.", mention_author = False)
         await self.bot.close()
         
-    @commands.command(name='sync')
+    @commands.command(name='push')
     @commands.is_owner()
     async def push_updates(self, ctx : commands.Context):
         timestamp_print("Pushing updates from admin command push_updates!")
@@ -90,6 +91,14 @@ class Admin(commands.Cog):
             await ctx.reply(f"SET DATABASE TO `{config_name}`.", mention_author = False)
         except FileNotFoundError:
             await ctx.reply(f"NO DATABASE `{config_name}` WAS FOUND.", mention_author=False)
+
+    @commands.command(hidden=True, name='commandsync', aliases=['sync'])
+    @commands.is_owner()
+    async def sync_commands(self, ctx : commands.Context):
+        guild = Object(id=1340285956548198410)
+        self.bot.tree.copy_global_to(guild=guild)
+        synced = await self.bot.tree.sync(guild=guild)
+        await ctx.reply(f"SYNCED {len(synced)} COMMANDS.")
 
 async def setup(bot : commands.Bot):
     await bot.add_cog(Admin(bot))

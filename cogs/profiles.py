@@ -1,7 +1,8 @@
 import asyncio
 import discord
 import requests
-import typing
+from typing import List, Optional, Annotated
+from discord import app_commands
 from discord.ext import commands
 
 from database_bot import DatabaseBot
@@ -11,6 +12,16 @@ display = load_json("en.json")
 
 def unhide(input : str):
     return str.lower(input) == "unhide"
+
+async def search_type_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> List[app_commands.Choice[str]]:
+    search_types = ["all", "short", "omit", "only"]
+    return [
+        app_commands.Choice(name=search_type, value=search_type)
+        for search_type in search_types if current.lower() in search_type.lower()
+    ]
 
 class Profiles(commands.Cog):
     def __init__(self, bot : DatabaseBot):
@@ -34,13 +45,28 @@ class Profiles(commands.Cog):
 
         self.min_ult_deco_len = 1
         self.max_ult_deco_len = 5
-    
-    @commands.hybrid_command(name="view", with_app_command=True)
-    async def view(self, ctx : commands.Context, 
-                   search_id: typing.Optional[str], 
-                   search_type: typing.Optional[str] = "omit", 
-                   *, 
-                   search_fields: typing.Annotated[str, lambda s: s.lower().split(' ')] = ["team_skills"]):
+
+    async def chara_id_autocomplete(
+        self,
+        interaction: discord.Interaction,
+        current: str,
+    ) -> List[app_commands.Choice[str]]:
+        chara_ids = self.bot.database.get_profile_ids()
+        return [
+            app_commands.Choice(name=id, value=id)
+            for id in chara_ids if current.lower() in id.lower()
+        ]
+
+    @commands.hybrid_command(name="view")
+    @app_commands.autocomplete(search_id=chara_id_autocomplete, search_type=search_type_autocomplete)
+    async def view_profile(
+        self, 
+        ctx: commands.Context, 
+        search_id: Optional[str], 
+        search_type: Optional[str] = "short", 
+        *, 
+        search_fields: Annotated[str, lambda s: s.lower().split(' ')] = [""]
+    ):
         """Retrieves the profile of a party member
 
         Parameters
@@ -48,10 +74,9 @@ class Profiles(commands.Cog):
         search_id: str
             the id of the party member to be retrieved; defaults to yours if left empty
         search_type: str
-            how fields are selected; one of "all", "short", "omit", or "only", defaults to all
+            how fields are selected; one of "all", "short", "omit", or "only", defaults to short
         search_fields
             what fields to return, separated by space: "persona", "stats", "theurgia" "equips", "skills", "team_skills"
-        
         """
         
         search_id = search_id if search_id else self.bot.database.get_default_profile_id(ctx.author.id)
@@ -70,7 +95,7 @@ class Profiles(commands.Cog):
         await ctx.reply(embed=_embed, mention_author=False)
 
     @commands.command(name='list')
-    async def list_ids(self, ctx : commands.Context, unhide: typing.Optional[unhide]):
+    async def list_ids(self, ctx : commands.Context, unhide: Optional[unhide]):
         response = "**VALID IDENTIFIERS**: "
 
         if unhide and self.bot.database.members.is_admin(ctx.author.id):
