@@ -57,7 +57,13 @@ class Profiles(commands.Cog):
             for id in chara_ids if current.lower() in id.lower()
         ]
 
-    @commands.hybrid_command(name="view")
+    @commands.hybrid_group(name="profiles", fallback="list")
+    async def profiles(self, ctx : commands.Context):
+        response = "**VALID IDENTIFIERS**: " + create_id_list(self.bot.database.get_profile_ids())
+        
+        await ctx.reply(response, mention_author = False)
+
+    @profiles.command(name="view")
     @app_commands.autocomplete(search_id=chara_id_autocomplete, search_type=search_type_autocomplete)
     async def view_profile(
         self, 
@@ -93,17 +99,6 @@ class Profiles(commands.Cog):
         _embed = self.__assemble_profile(p, search_type, search_fields)
         
         await ctx.reply(embed=_embed, mention_author=False)
-
-    @commands.command(name='list')
-    async def list_ids(self, ctx : commands.Context, unhide: Optional[unhide]):
-        response = "**VALID IDENTIFIERS**: "
-
-        if unhide and self.bot.database.members.is_admin(ctx.author.id):
-            response = "ACCESSING HIDDEN IDENTIFIERS...\n" + response + create_id_list(self.bot.database.get_profile_ids(True))
-        else:
-            response += create_id_list(self.bot.database.get_profile_ids())
-        
-        await ctx.reply(response, mention_author = False)
 
     @commands.command(name='allocate')
     async def add_stats(self, ctx : commands.Context, search_id : str, strength : int, magic : int, agility : int, endurance : int, luck : int):
