@@ -4,6 +4,7 @@ from discord.ext import commands
 from database_bot import DatabaseBot
 from util.utils import load_json
 from sheets.load_party_info import PartyData
+from typing import Optional
 
 display = load_json("en.json")
 
@@ -12,8 +13,8 @@ class Party(commands.Cog):
         self.bot = bot
         self.database = self.bot.database
 
-    @commands.command()
-    async def partyinfo(self, ctx : commands.Context):
+    @commands.hybrid_command()
+    async def partyinfo(self, ctx : commands.Context, ephemeral: Optional[bool] = True):
         data = self.database.get_party_info()
         colour = discord.Colour.from_str(data["COLOR"]) if data["COLOR"] else discord.Colour.random()
 
@@ -48,7 +49,7 @@ class Party(commands.Cog):
         
         var_embed.add_field(name=level, value=info, inline=False)
         
-        await ctx.send(embed=var_embed)
+        await ctx.send(embed=var_embed, ephemeral=ephemeral)
 
 def make_bar(value : int, max : int, filled : str, unfilled : str, spaced = True):
     bar = ""

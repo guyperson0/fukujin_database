@@ -57,20 +57,32 @@ class Profiles(commands.Cog):
             for id in chara_ids if current.lower() in id.lower()
         ]
 
-    @commands.hybrid_group(name="profiles", fallback="list")
-    async def profiles(self, ctx : commands.Context):
+    @commands.hybrid_command(name="list")
+    async def profiles(
+        self, 
+        ctx: commands.Context,
+        ephemeral: Optional[bool] = True
+    ):
+        """Retrieves a list of profile IDs
+        
+        Parameters
+        -----------
+        ephemeral: bool
+            whether other users see the message; only works with slash commands (y/n)
+        """
         response = "**VALID IDENTIFIERS**: " + create_id_list(self.bot.database.get_profile_ids())
-        await ctx.reply(response, mention_author = False)
+        await ctx.reply(response, mention_author=False, ephemeral=ephemeral)
 
-    @profiles.command(name="view")
+    @commands.hybrid_command(name="view")
     @app_commands.autocomplete(search_id=chara_id_autocomplete, search_type=search_type_autocomplete)
     async def view_profile(
         self, 
         ctx: commands.Context, 
         search_id: Optional[str], 
         search_type: Optional[str] = "short", 
-        *, 
-        search_fields: Annotated[str, lambda s: s.lower().split(' ')] = [""]
+        *,
+        search_fields: Annotated[str, lambda s: s.lower().split(' ')] = [""],
+        ephemeral: Optional[bool] = True
     ):
         """Retrieves the profile of a party member
 
@@ -80,8 +92,10 @@ class Profiles(commands.Cog):
             the id of the party member to be retrieved; defaults to yours if left empty
         search_type: str
             how fields are selected; one of "all", "short", "omit", or "only", defaults to short
-        search_fields
+        search_fields: str
             what fields to return, separated by space: "persona", "stats", "theurgia" "equips", "skills", "team_skills"
+        ephemeral: bool
+            whether other users see the message; only works with slash commands (y/n)
         """
         
         search_id = search_id if search_id else self.bot.database.get_default_profile_id(ctx.author.id)
@@ -97,19 +111,37 @@ class Profiles(commands.Cog):
         p = self.bot.database.get_profile(search_id)
         _embed = self.__assemble_profile(p, search_type, search_fields)
         
-        await ctx.reply(embed=_embed, mention_author=False)
+        await ctx.reply(embed=_embed, mention_author=False, ephemeral=ephemeral)
 
-    @commands.command(name='allocate')
+    @commands.hybrid_command(name='allocate')
+    @app_commands.autocomplete(search_id=chara_id_autocomplete)
     async def add_stats(
         self, 
         ctx : commands.Context, 
         search_id : Annotated[str, lambda s: s.lower()], 
-        strength : int, 
-        magic : int, 
-        agility : int, 
-        endurance : int, 
-        luck : int
+        strength : Optional[int] = 0, 
+        magic : Optional[int] = 0, 
+        agility : Optional[int] = 0, 
+        endurance : Optional[int] = 0, 
+        luck : Optional[int] = 0
     ):
+        """Allocates stats to a profile
+
+        Parameters
+        -----------
+        search_id: str
+            the id of the party member to be retrieved; defaults to yours if left empty
+        strength: int
+            how much strength to allocate
+        magic: int
+            how much magic to allocate
+        agility: int
+            how much agility to allocate
+        endurance: int
+            how much endurance to allocate
+        luck: int
+            how much luck to allocate
+        """
         add_stats = [strength, magic, agility, endurance, luck]
 
         async def validate():
@@ -150,39 +182,66 @@ class Profiles(commands.Cog):
         
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
-    @commands.command(name='editname')
+    @commands.hybrid_command(name='editname')
+    @app_commands.autocomplete(search_id=chara_id_autocomplete)
     async def change_display_name(
         self, 
         ctx : commands.Context, 
         search_id : Annotated[str, lambda s: s.lower()], 
-        value : str
+        display : str
     ):
-        
-        async def validate():
-            return await validate_length(ctx, "DISPLAY NAME", self.min_display_name_len, self.max_display_name_len, value)
+        """Changes the display name of the profile (does not change in battle)
 
-        confirm_msg = f"CONFIRMING DISPLAY CHANGE OF `{search_id}` TO `{value}`."
+        Parameters
+        -----------
+        search_id: str
+            the id of the party member to be retrieved; defaults to yours if left empty
+        value: str
+            the display name to be set
+        """
+        async def validate():
+            return await validate_length(ctx, "DISPLAY NAME", self.min_display_name_len, self.max_display_name_len, display)
+
+        confirm_msg = f"CONFIRMING DISPLAY CHANGE OF `{search_id}` TO `{display}`."
 
         def edit_database():
-            self.bot.database.change_name(search_id, value)
+            self.bot.database.change_name(search_id, display)
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
-    @commands.command(name='editicon')
+    @commands.hybrid_command(name='editicon')
+    @app_commands.autocomplete(search_id=chara_id_autocomplete)
     async def change_icon(
         self, 
-        ctx : commands.Context, 
-        search_id : Annotated[str, lambda s: s.lower()], 
-        value = None
+        ctx: commands.Context, 
+        search_id: Annotated[str, lambda s: s.lower()], 
+        link: Optional[str],
+        image: Optional[discord.Attachment]
     ):
+        """Changes the icon of the profile
+
+        Parameters
+        -----------
+        search_id: str
+            the id of the party member to be retrieved; defaults to yours if left empty
+        link: str
+            a link to an image for the icon
+        image: discord.Attachment
+            the image for the icon
+        """
+
         icon_link = None
-        
-        for file in ctx.message.attachments:
-            if is_image_link(file.url):
-                icon_link = file.url
-                break
+        if image and is_image_link(image.url):
+            icon_link = image.url
+        elif link and is_image_link(link):
+            icon_link = link
         else:
-            icon_link = value
+            for file in ctx.message.attachments:
+                if is_image_link(file.url):
+                    icon_link = file.url
+                    break
+            else:
+                icon_link = None
             
         async def validate():
             if not icon_link:
@@ -201,13 +260,23 @@ class Profiles(commands.Cog):
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
-    @commands.command(name='editcolor')
+    @commands.hybrid_command(name='editcolor')
+    @app_commands.autocomplete(search_id=chara_id_autocomplete)
     async def change_color(
         self, 
         ctx : commands.Context, 
         search_id : Annotated[str, lambda s: s.lower()], 
         value : str
     ):
+        """Changes the embed colour of the profile
+
+        Parameters
+        -----------
+        search_id: str
+            the id of the party member to be retrieved; defaults to yours if left empty
+        value: str
+            the hex code for the colour in either #rrggbb or #rgb format
+        """
         color = match_hex_color(value)
 
         async def validate():
@@ -222,16 +291,17 @@ class Profiles(commands.Cog):
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
-    @commands.command(name='editcustomstat')
+    @commands.hybrid_command(name='editcustomstat')
+    @app_commands.autocomplete(search_id=chara_id_autocomplete)
     async def change_custom_stat(
         self, 
-        ctx : commands.Context, 
-        search_id : Annotated[str, lambda s: s.lower()], 
-        stat_name : str, 
-        stat_abbrev : str, 
-        stat_value : str
+        ctx: commands.Context, 
+        search_id: Annotated[str, lambda s: s.lower()], 
+        stat_name: str, 
+        stat_abbrev: str, 
+        stat_value: str
     ):
-
+    
         async def validate():
             return (
                 await validate_length(ctx, "CUSTOM STAT NAME", self.min_stat_name_len, self.max_stat_name_len, stat_name) and
@@ -246,13 +316,14 @@ class Profiles(commands.Cog):
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
-    @commands.command(name='editdecorators')
+    @commands.hybrid_command(name='editdecorators')
+    @app_commands.autocomplete(search_id=chara_id_autocomplete)
     async def change_theurgia(
         self, 
-        ctx : commands.Context, 
-        search_id : Annotated[str, lambda s: s.lower()], 
-        left : str, 
-        right : str
+        ctx: commands.Context, 
+        search_id: Annotated[str, lambda s: s.lower()], 
+        left: str, 
+        right: str
     ):
         
         async def validate():
