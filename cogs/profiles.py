@@ -36,11 +36,14 @@ class Profiles(commands.Cog):
         self.max_ult_deco_len = 5
     
     @commands.hybrid_command(name="view", with_app_command=True)
-    async def view(self, ctx : commands.Context, 
-                   search_id: typing.Optional[str], 
-                   search_type: typing.Optional[str] = "omit", 
-                   *, 
-                   search_fields: typing.Annotated[str, lambda s: s.lower().split(' ')] = ["team_skills"]):
+    async def view(
+        self, 
+        ctx : commands.Context, 
+        search_id: typing.Annotated[str, lambda s: s.lower()], 
+        search_type: typing.Optional[str] = "omit", 
+        *, 
+        search_fields: typing.Annotated[str, lambda s: s.lower().split(' ')] = ["team_skills"]
+    ):
         """Retrieves the profile of a party member
 
         Parameters
@@ -70,7 +73,11 @@ class Profiles(commands.Cog):
         await ctx.reply(embed=_embed, mention_author=False)
 
     @commands.command(name='list')
-    async def list_ids(self, ctx : commands.Context, unhide: typing.Optional[unhide]):
+    async def list_ids(
+        self, 
+        ctx : commands.Context, 
+        unhide: typing.Optional[unhide]
+    ):
         response = "**VALID IDENTIFIERS**: "
 
         if unhide and self.bot.database.members.is_admin(ctx.author.id):
@@ -81,7 +88,16 @@ class Profiles(commands.Cog):
         await ctx.reply(response, mention_author = False)
 
     @commands.command(name='allocate')
-    async def add_stats(self, ctx : commands.Context, search_id : str, strength : int, magic : int, agility : int, endurance : int, luck : int):
+    async def add_stats(
+        self, 
+        ctx : commands.Context, 
+        search_id : typing.Annotated[str, lambda s: s.lower()], 
+        strength : int, 
+        magic : int, 
+        agility : int, 
+        endurance : int, 
+        luck : int
+    ):
         add_stats = [strength, magic, agility, endurance, luck]
 
         async def validate():
@@ -123,7 +139,12 @@ class Profiles(commands.Cog):
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
     @commands.command(name='editname')
-    async def change_display_name(self, ctx : commands.Context, search_id : str, value : str):
+    async def change_display_name(
+        self, 
+        ctx : commands.Context, 
+        search_id : typing.Annotated[str, lambda s: s.lower()], 
+        value : str
+    ):
         
         async def validate():
             return await validate_length(ctx, "DISPLAY NAME", self.min_display_name_len, self.max_display_name_len, value)
@@ -136,7 +157,12 @@ class Profiles(commands.Cog):
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
     @commands.command(name='editicon')
-    async def change_icon(self, ctx : commands.Context, search_id : str, value = None):
+    async def change_icon(
+        self, 
+        ctx : commands.Context, 
+        search_id : typing.Annotated[str, lambda s: s.lower()], 
+        value = None
+    ):
         icon_link = None
         
         for file in ctx.message.attachments:
@@ -164,7 +190,12 @@ class Profiles(commands.Cog):
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
     @commands.command(name='editcolor')
-    async def change_color(self, ctx : commands.Context, search_id : str, value : str):
+    async def change_color(
+        self, 
+        ctx : commands.Context, 
+        search_id : typing.Annotated[str, lambda s: s.lower()], 
+        value : str
+    ):
         color = match_hex_color(value)
 
         async def validate():
@@ -180,7 +211,14 @@ class Profiles(commands.Cog):
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
     @commands.command(name='editcustomstat')
-    async def change_custom_stat(self, ctx : commands.Context, search_id : str, stat_name : str, stat_abbrev : str, stat_value : str):
+    async def change_custom_stat(
+        self, 
+        ctx : commands.Context, 
+        search_id : typing.Annotated[str, lambda s: s.lower()], 
+        stat_name : str, 
+        stat_abbrev : str, 
+        stat_value : str
+    ):
 
         async def validate():
             return (
@@ -197,7 +235,13 @@ class Profiles(commands.Cog):
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
     @commands.command(name='editdecorators')
-    async def change_theurgia(self, ctx : commands.Context, search_id : str, left : str, right : str):
+    async def change_theurgia(
+        self, 
+        ctx : commands.Context, 
+        search_id : typing.Annotated[str, lambda s: s.lower()], 
+        left : str, 
+        right : str
+    ):
         
         async def validate():
             return (
@@ -233,7 +277,15 @@ class Profiles(commands.Cog):
             case _:
                 return construct_embed(profile)
 
-    async def edit_after_confirm(self, ctx : commands.Context, confirm_message : str, edit_function, confirm = '✅', reject = '❎', time = 20.0):
+    async def edit_after_confirm(
+        self, 
+        ctx : commands.Context, 
+        confirm_message : str, 
+        edit_function : typing.Callable, 
+        confirm = '✅', 
+        reject = '❎', 
+        time = 20.0
+    ):
         msg = await ctx.reply(confirm_message, mention_author = False)
         
         await msg.add_reaction(confirm)
@@ -255,7 +307,14 @@ class Profiles(commands.Cog):
             else:
                 await msg.reply("CHANGES ABORTED.")
 
-    async def edit_command(self, ctx : commands.Context, search_id : str, validate, confirm_msg : str, edit_database):
+    async def edit_command(
+        self, 
+        ctx : commands.Context, 
+        search_id : str, 
+        validate : typing.Callable, 
+        confirm_msg : str, 
+        edit_database : typing.Callable
+    ):
         try:
             user_id = ctx.author.id
 
@@ -274,7 +333,13 @@ class Profiles(commands.Cog):
         finally:
             await self.release_lock(user_id)
 
-    async def permission_checks(self, ctx : commands.Context, user_id : int, search_id : str, need_edit_access = True):
+    async def permission_checks(
+        self, 
+        ctx : commands.Context, 
+        user_id : int, 
+        search_id : str, 
+        need_edit_access = True
+    ):
         if not self.bot.database.accessible(user_id, search_id):
             await send_error(ctx, "INVALID IDENTIFIER", f"THE ID `{search_id}` IS INVALID OR ACCESSIBLE.")
             return False
@@ -284,7 +349,12 @@ class Profiles(commands.Cog):
         
         return True
 
-    async def acquire_lock(self, ctx : commands.Context, user_id : int, search_id : str):
+    async def acquire_lock(
+        self, 
+        ctx : commands.Context, 
+        user_id : int, 
+        search_id : str
+    ):
         async with self.lock:
             if user_id in self.user_locks:
                 await send_error(ctx, "EDIT IN PROGRESS", f"YOU ARE CURRENTLY EDITING THE PROFILE `{self.user_locks[user_id]}`")
