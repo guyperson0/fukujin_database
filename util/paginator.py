@@ -2,10 +2,7 @@ import discord
 
 class Paginator(discord.ui.View):
     
-    def __init__(self, pages):
-        self.pages = pages
-        self.index = 0
-
+    def __init__(self):
         self.add_item(self.left)
         self.add_item(self.right)
 
