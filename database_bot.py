@@ -6,10 +6,13 @@ from util.utils import timestamp_print, send_error
 from traceback import print_exception
 
 class DatabaseBot(commands.Bot):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, config_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.gc = gspread.service_account(filename="sheets/credentials/service_account.json")
-        self.database = FukujinDatabaseManager(self.gc)
+        self.set_database(config_name)
+        
+    def set_database(self, config_name):
+        self.database = FukujinDatabaseManager(self.gc, f"database_configs/{config_name}.json")
 
     def print_loaded_commands(self):
         timestamp_print(f"Loaded commands: {', '.join([command.name for command in self.commands])}")
@@ -23,6 +26,8 @@ class DatabaseBot(commands.Bot):
             return
         elif isinstance(e, commands.errors.MissingRequiredArgument):
             await send_error(ctx, "MISSING REQUIRED ARGUMENT", "CHECK THE COMMAND SYNTAX WAS PROPERLY FOLLOWED.")
+        elif isinstance(e, commands.errors.NotOwner):
+            await ctx.reply("THIS COMMAND IS RESTRICTED TO BOT ADMINISTRATORS.", mention_author=False)
         else:
             await send_error(ctx, "UNKNOWN ERROR", "PLEASE CONTACT THE ADMINISTRATOR AS SOON AS POSSIBLE.")
             timestamp_print(f"{ctx.author.name} ({ctx.author.id}) encountered an error invoking:")

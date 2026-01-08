@@ -1,26 +1,37 @@
 import asyncio
 import discord
 import requests
-import typing
+from typing import List, Optional, Annotated, Callable
+from discord import app_commands
 from discord.ext import commands
 
 from database_bot import DatabaseBot
 from util.utils import *
 
-config = load_json("config.json")
 display = load_json("en.json")
 
 def unhide(input : str):
     return str.lower(input) == "unhide"
 
+async def search_type_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> List[app_commands.Choice[str]]:
+    search_types = ["all", "short", "omit", "only"]
+    return [
+        app_commands.Choice(name=search_type, value=search_type)
+        for search_type in search_types if current.lower() in search_type.lower()
+    ]
+
 class Profiles(commands.Cog):
     def __init__(self, bot : DatabaseBot):
         self.bot = bot
-        self.database = bot.database
 
         self.user_locks = {}
         self.chara_locks = {}
         self.lock = asyncio.Lock()
+
+        self.allow_deallocate = False
 
         self.min_display_name_len = 3
         self.max_display_name_len = 32
@@ -34,10 +45,45 @@ class Profiles(commands.Cog):
 
         self.min_ult_deco_len = 1
         self.max_ult_deco_len = 5
-    
-    @commands.hybrid_command(name="view", with_app_command=True)
-    async def view(self, ctx : commands.Context, search_id: typing.Optional[str], 
-                   search_type: typing.Optional[str] = "all", *, search_fields: typing.Annotated[str, lambda s: s.lower().split(' ')] = []):
+
+    async def chara_id_autocomplete(
+        self,
+        interaction: discord.Interaction,
+        current: str,
+    ) -> List[app_commands.Choice[str]]:
+        chara_ids = self.bot.database.get_profile_ids()
+        return [
+            app_commands.Choice(name=id, value=id)
+            for id in chara_ids if current.lower() in id.lower()
+        ]
+
+    @commands.hybrid_command(name="list")
+    async def profiles(
+        self, 
+        ctx: commands.Context,
+        ephemeral: Optional[bool] = True
+    ):
+        """Retrieves a list of profile IDs
+        
+        Parameters
+        -----------
+        ephemeral: bool
+            whether other users see the message; only works with slash commands (y/n)
+        """
+        response = "**VALID IDENTIFIERS**: " + create_id_list(self.bot.database.get_profile_ids())
+        await ctx.reply(response, mention_author=False, ephemeral=ephemeral)
+
+    @commands.hybrid_command(name="view")
+    @app_commands.autocomplete(search_id=chara_id_autocomplete, search_type=search_type_autocomplete)
+    async def view_profile(
+        self, 
+        ctx: commands.Context, 
+        search_id: Optional[str], 
+        search_type: Optional[str] = "short", 
+        *,
+        search_fields: Annotated[str, lambda s: s.lower().split(' ')] = [""],
+        ephemeral: Optional[bool] = True
+    ):
         """Retrieves the profile of a party member
 
         Parameters
@@ -45,51 +91,74 @@ class Profiles(commands.Cog):
         search_id: str
             the id of the party member to be retrieved; defaults to yours if left empty
         search_type: str
-            how fields are selected; one of "all", "short", "omit", or "only", defaults to all
-        search_fields
+            how fields are selected; one of "all", "short", "omit", or "only", defaults to short
+        search_fields: str
             what fields to return, separated by space: "persona", "stats", "theurgia" "equips", "skills", "team_skills"
-        
+        ephemeral: bool
+            whether other users see the message; only works with slash commands (y/n)
         """
         
-        search_id = search_id if search_id else self.database.get_default_profile_id(ctx.author.id)
+        search_id = search_id if search_id else self.bot.database.get_default_profile_id(ctx.author.id)
 
         if not search_id:
             await send_error(ctx, "NO DEFAULT PROFILE", "NO DEFAULT PROFILE HAS BEEN ASSIGNED TO YOU; PLEASE ENTER A VALID PROFILE ID.")
             return
 
-        if search_id and not self.database.accessible(ctx.author.id, search_id):
+        if search_id and not self.bot.database.accessible(ctx.author.id, search_id):
             await send_error(ctx, "NO SUCH PROFILE", f"PROFILE `{search_id}` DOES NOT EXIST.")
             return
 
-        p = self.database.get_profile(ctx.author.id, search_id)
+        p = self.bot.database.get_profile(search_id)
         _embed = self.__assemble_profile(p, search_type, search_fields)
         
-        await ctx.reply(embed=_embed, mention_author=False)
+        await ctx.reply(embed=_embed, mention_author=False, ephemeral=ephemeral)
 
-    @commands.command(name='list')
-    async def list_ids(self, ctx : commands.Context, unhide: typing.Optional[unhide]):
-        response = "**VALID IDENTIFIERS**: "
+    @commands.hybrid_command(name='allocate')
+    @app_commands.autocomplete(search_id=chara_id_autocomplete)
+    async def add_stats(
+        self, 
+        ctx : commands.Context, 
+        search_id : Annotated[str, lambda s: s.lower()], 
+        strength : Optional[int] = 0, 
+        magic : Optional[int] = 0, 
+        agility : Optional[int] = 0, 
+        endurance : Optional[int] = 0, 
+        luck : Optional[int] = 0
+    ):
+        """Allocates stats to a profile
 
-        if unhide and self.database.members.is_admin(ctx.author.id):
-            response = "ACCESSING HIDDEN IDENTIFIERS...\n" + response + create_id_list(self.database.get_profile_ids(True))
-        else:
-            response += create_id_list(self.database.get_profile_ids())
-        
-        await ctx.reply(response, mention_author = False)
-
-    @commands.command(name='allocate')
-    async def add_stats(self, ctx : commands.Context, search_id : str, strength : int, magic : int, agility : int, endurance : int, luck : int):
+        Parameters
+        -----------
+        search_id: str
+            the id of the party member to be retrieved; defaults to yours if left empty
+        strength: int
+            how much strength to allocate
+        magic: int
+            how much magic to allocate
+        agility: int
+            how much agility to allocate
+        endurance: int
+            how much endurance to allocate
+        luck: int
+            how much luck to allocate
+        """
         add_stats = [strength, magic, agility, endurance, luck]
 
         async def validate():
             total = sum(add_stats)
-            pending = int(self.database.profiles.get_value(search_id, "STATS_PENDING"))
-            base_stats = [int(x) for x in self.database.profiles.get_base_stats(search_id)]
+            pending = int(self.bot.database.profiles.get_value(search_id, "STATS_PENDING"))
+            base_stats = [int(x) for x in self.bot.database.profiles.get_base_stats(search_id)]
 
-            if total == 0:
+            for x in add_stats:
+                if x != 0:
+                    break
+                elif x < 0 and not (self.bot.database.is_admin(ctx.author) or self.allow_deallocate):
+                    await send_error(ctx, "INSUFFICIENT PERMISSIONS", "YOU DO NOT HAVE PERMISSION TO DEALLOCATE STATS.")
+            else:
                 await ctx.reply("VERY FUNNY.", mention_author=False)
                 return False
-            elif total > pending:
+                
+            if total > pending:
                 await send_error(ctx, "TOO MANY STATS ALLOCATED", f"ATTEMPTED TO ALLOCATE `{total}` STATS WITH `{pending}` STATS PENDING")
                 return False
 
@@ -109,33 +178,70 @@ class Profiles(commands.Cog):
             f"AND `{add_stats[4]} Luck` TO `{search_id}`")
         
         def edit_database():
-            self.database.add_stats_list(search_id, add_stats)
+            self.bot.database.add_stats_list(search_id, add_stats)
         
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
-    @commands.command(name='editname')
-    async def change_display_name(self, ctx : commands.Context, search_id : str, value : str):
-        
-        async def validate():
-            return await validate_length(ctx, "DISPLAY NAME", self.min_display_name_len, self.max_display_name_len, value)
+    @commands.hybrid_command(name='editname')
+    @app_commands.autocomplete(search_id=chara_id_autocomplete)
+    async def change_display_name(
+        self, 
+        ctx : commands.Context, 
+        search_id : Annotated[str, lambda s: s.lower()], 
+        display : str
+    ):
+        """Changes the display name of the profile (does not change in battle)
 
-        confirm_msg = f"CONFIRMING DISPLAY CHANGE OF `{search_id}` TO `{value}`."
+        Parameters
+        -----------
+        search_id: str
+            the id of the party member to be retrieved; defaults to yours if left empty
+        value: str
+            the display name to be set
+        """
+        async def validate():
+            return await validate_length(ctx, "DISPLAY NAME", self.min_display_name_len, self.max_display_name_len, display)
+
+        confirm_msg = f"CONFIRMING DISPLAY CHANGE OF `{search_id}` TO `{display}`."
 
         def edit_database():
-            self.database.change_name(search_id, value)
+            self.bot.database.change_name(search_id, display)
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
-    @commands.command(name='editicon')
-    async def change_icon(self, ctx : commands.Context, search_id : str, value = None):
+    @commands.hybrid_command(name='editicon')
+    @app_commands.autocomplete(search_id=chara_id_autocomplete)
+    async def change_icon(
+        self, 
+        ctx: commands.Context, 
+        search_id: Annotated[str, lambda s: s.lower()], 
+        link: Optional[str],
+        image: Optional[discord.Attachment]
+    ):
+        """Changes the icon of the profile
+
+        Parameters
+        -----------
+        search_id: str
+            the id of the party member to be retrieved; defaults to yours if left empty
+        link: str
+            a link to an image for the icon
+        image: discord.Attachment
+            the image for the icon
+        """
+
         icon_link = None
-        
-        for file in ctx.message.attachments:
-            if is_image_link(file.url):
-                icon_link = file.url
-                break
+        if image and is_image_link(image.url):
+            icon_link = image.url
+        elif link and is_image_link(link):
+            icon_link = link
         else:
-            icon_link = value
+            for file in ctx.message.attachments:
+                if is_image_link(file.url):
+                    icon_link = file.url
+                    break
+            else:
+                icon_link = None
             
         async def validate():
             if not icon_link:
@@ -150,12 +256,27 @@ class Profiles(commands.Cog):
         confirm_msg = f"CONFIRMING ICON CHANGE TO THE FOLLOWING IMAGE:\n{icon_link}"
 
         def edit_database():
-            self.database.change_icon(search_id, icon_link)
+            self.bot.database.change_icon(search_id, icon_link)
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
-    @commands.command(name='editcolor')
-    async def change_color(self, ctx : commands.Context, search_id : str, value : str):
+    @commands.hybrid_command(name='editcolor')
+    @app_commands.autocomplete(search_id=chara_id_autocomplete)
+    async def change_color(
+        self, 
+        ctx : commands.Context, 
+        search_id : Annotated[str, lambda s: s.lower()], 
+        value : str
+    ):
+        """Changes the embed colour of the profile
+
+        Parameters
+        -----------
+        search_id: str
+            the id of the party member to be retrieved; defaults to yours if left empty
+        value: str
+            the hex code for the colour in either #rrggbb or #rgb format
+        """
         color = match_hex_color(value)
 
         async def validate():
@@ -166,12 +287,33 @@ class Profiles(commands.Cog):
         confirm_msg = f"CONFIRMING COLOR CHANGE OF `{search_id}` to `{color.group()}`"
 
         def edit_database():
-            self.database.change_color(search_id, color.group())
+            self.bot.database.change_color(search_id, color.group())
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
-    @commands.command(name='editcustomstat')
-    async def change_custom_stat(self, ctx : commands.Context, search_id : str, stat_name : str, stat_abbrev : str, stat_value : str):
+    @commands.hybrid_command(name='editcustomstat')
+    @app_commands.autocomplete(search_id=chara_id_autocomplete)
+    async def change_custom_stat(
+        self, 
+        ctx: commands.Context, 
+        search_id: Annotated[str, lambda s: s.lower()], 
+        stat_name: str, 
+        stat_abbrev: str, 
+        stat_value: str
+    ):
+        """Changes the decorative custom stat
+
+        Parameters
+        -----------
+        search_id: str
+            the id of the party member to be retrieved; defaults to yours if left empty
+        stat_name: str
+            the full name of the stat
+        stat_abbrev: str
+            the abbreviated name of the stat
+        stat_value: str
+            the value of the stat
+        """
 
         async def validate():
             return (
@@ -183,12 +325,30 @@ class Profiles(commands.Cog):
         confirm_msg = f"CONFIRMING CUSTOM STAT CHANGES OF `{search_id}` TO `{stat_name}: {stat_value}` (`{stat_value} {stat_abbrev}`)"
 
         def edit_database():
-            self.database.change_custom_stat(search_id, stat_name, stat_abbrev, stat_value)
+            self.bot.database.change_custom_stat(search_id, stat_name, stat_abbrev, stat_value)
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
-    @commands.command(name='editdecorators')
-    async def change_theurgia(self, ctx : commands.Context, search_id : str, left : str, right : str):
+    @commands.hybrid_command(name='editdecorators')
+    @app_commands.autocomplete(search_id=chara_id_autocomplete)
+    async def change_decorators(
+        self, 
+        ctx: commands.Context, 
+        search_id: Annotated[str, lambda s: s.lower()], 
+        left: str, 
+        right: str
+    ):
+        """Changes the decorators on the special skill gauge
+
+        Parameters
+        -----------
+        search_id: str
+            the id of the party member to be retrieved; defaults to yours if left empty
+        left: str
+            the left decorator
+        right: str
+            the right decorator
+        """
         
         async def validate():
             return (
@@ -199,7 +359,7 @@ class Profiles(commands.Cog):
         confirm_msg = f"CONFIRMING THEURGY GAUGE DECORATORS: `{left} 2000 / 2000 {right}`"
 
         def edit_database():
-            self.database.change_theurgia_gauge(search_id, left, right)
+            self.bot.database.change_theurgia_gauge(search_id, left, right)
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
@@ -224,7 +384,15 @@ class Profiles(commands.Cog):
             case _:
                 return construct_embed(profile)
 
-    async def edit_after_confirm(self, ctx : commands.Context, confirm_message : str, edit_function, confirm = '✅', reject = '❎', time = 20.0):
+    async def edit_after_confirm(
+        self, 
+        ctx : commands.Context, 
+        confirm_message : str, 
+        edit_function : Callable, 
+        confirm = '✅', 
+        reject = '❎', 
+        time = 20.0
+    ):
         msg = await ctx.reply(confirm_message, mention_author = False)
         
         await msg.add_reaction(confirm)
@@ -246,7 +414,14 @@ class Profiles(commands.Cog):
             else:
                 await msg.reply("CHANGES ABORTED.")
 
-    async def edit_command(self, ctx : commands.Context, search_id : str, validate, confirm_msg : str, edit_database):
+    async def edit_command(
+        self, 
+        ctx : commands.Context, 
+        search_id : str, 
+        validate : Callable, 
+        confirm_msg : str, 
+        edit_database : Callable
+    ):
         try:
             user_id = ctx.author.id
 
@@ -260,22 +435,33 @@ class Profiles(commands.Cog):
                 return
             
             await self.edit_after_confirm(ctx, confirm_msg, edit_database)
-            await self.release_lock(user_id)
         except Exception as e:
-            await self.release_lock(user_id)
             await self.bot.on_command_error(ctx, e)
+        finally:
+            await self.release_lock(user_id)
 
-    async def permission_checks(self, ctx : commands.Context, user_id : int, search_id : str, need_edit_access = True):
-        if not self.database.accessible(user_id, search_id):
+    async def permission_checks(
+        self, 
+        ctx : commands.Context, 
+        user_id : int, 
+        search_id : str, 
+        need_edit_access = True
+    ):
+        if not self.bot.database.accessible(user_id, search_id):
             await send_error(ctx, "INVALID IDENTIFIER", f"THE ID `{search_id}` IS INVALID OR ACCESSIBLE.")
             return False
-        elif need_edit_access and not self.database.members.has_edit_access(user_id, search_id):
+        elif need_edit_access and not self.bot.database.members.has_edit_access(user_id, search_id):
             await send_error(ctx, "INSUFFICIENT PERMISSION", f"YOU DO NOT HAVE PERMISSION TO ACCESS THE PROFILE `{search_id}`")
             return False
         
         return True
 
-    async def acquire_lock(self, ctx : commands.Context, user_id : int, search_id : str):
+    async def acquire_lock(
+        self, 
+        ctx : commands.Context, 
+        user_id : int, 
+        search_id : str
+    ):
         async with self.lock:
             if user_id in self.user_locks:
                 await send_error(ctx, "EDIT IN PROGRESS", f"YOU ARE CURRENTLY EDITING THE PROFILE `{self.user_locks[user_id]}`")
