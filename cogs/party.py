@@ -1,27 +1,32 @@
-import discord
+from discord import Colour, Embed
 from discord.ext import commands
-
 from database_bot import DatabaseBot
 from util.utils import load_json
-from sheets.load_party_info import PartyData
 from typing import Optional
 
 display = load_json("en.json")
 
 class Party(commands.Cog):
-    def __init__(self, bot : DatabaseBot):
+    def __init__(self, bot: DatabaseBot):
         self.bot = bot
         self.database = self.bot.database
 
     @commands.hybrid_command()
-    async def partyinfo(self, ctx : commands.Context, ephemeral: Optional[bool] = True):
-        data = self.database.get_party_info()
-        colour = discord.Colour.from_str(data["COLOR"]) if data["COLOR"] else discord.Colour.random()
+    async def partyinfo(self, ctx: commands.Context, ephemeral: Optional[bool] = True):
+        """Retrieves the profile of a party member
 
-        var_embed = discord.Embed(
+        Parameters
+        -----------
+        ephemeral: bool
+            whether other users see the message; only works with slash commands (y/n)
+        """
+        data = self.database.get_party_info()
+        colour = Colour.from_str(data["COLOR"]) if data["COLOR"] else Colour.random()
+
+        var_embed = Embed(
             title=display["party_name"].format(
                 party_name=data["NAME"]
-            ), 
+            ),  
             colour=colour
         )
 
@@ -51,7 +56,13 @@ class Party(commands.Cog):
         
         await ctx.send(embed=var_embed, ephemeral=ephemeral)
 
-def make_bar(value : int, max : int, filled : str, unfilled : str, spaced = True):
+def make_bar(
+    value: int, 
+    max: int, 
+    filled: str, 
+    unfilled: str, 
+    spaced = True
+) -> str:
     bar = ""
     i = 0
     while (i < max):
@@ -64,5 +75,5 @@ def make_bar(value : int, max : int, filled : str, unfilled : str, spaced = True
     
     return bar
 
-async def setup(bot : commands.Bot):
+async def setup(bot: commands.Bot):
     await bot.add_cog(Party(bot))

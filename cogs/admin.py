@@ -88,17 +88,36 @@ class Admin(commands.Cog):
     async def set_database(self, ctx : commands.Context, config_name):
         try: 
             self.bot.set_database(config_name)
-            await ctx.reply(f"SET DATABASE TO `{config_name}`.", mention_author = False)
+            await ctx.reply(f"SET DATABASE TO `{config_name}`.", mention_author=False)
         except FileNotFoundError:
             await ctx.reply(f"NO DATABASE `{config_name}` WAS FOUND.", mention_author=False)
 
-    @commands.command(hidden=True, name='commandsync', aliases=['sync'])
+    @commands.command(hidden=True, name='globalsync')
     @commands.is_owner()
-    async def sync_commands(self, ctx : commands.Context):
-        guild = Object(id=1340285956548198410)
-        self.bot.tree.copy_global_to(guild=guild)
-        synced = await self.bot.tree.sync(guild=guild)
-        await ctx.reply(f"SYNCED {len(synced)} COMMANDS.")
+    async def sync_commands_global(self, ctx: commands.Context):
+        synced = await self.bot.tree.sync()
+        await ctx.reply(f"SYNCED {(len(synced))} COMMANDS.", mention_author=False)
 
+    @commands.command(hidden=True, name='localsync', aliases=['sync'])
+    @commands.is_owner()
+    async def sync_commands_local(self, ctx : commands.Context):
+        self.bot.tree.copy_global_to(guild=ctx.guild)
+        synced = await self.bot.tree.sync(guild=ctx.guild)
+        await ctx.reply(f"SYNCED {len(synced)} COMMANDS.", mention_author=False)
+
+    @commands.command(hidden=True, name="globalclear")
+    @commands.is_owner()
+    async def clear_commands_global(self, ctx: commands.Context):
+        self.bot.tree.clear_commands(guild=None)
+        await self.bot.tree.sync()
+        await ctx.reply(f"CLEARED GLOBAL TREE OF COMMANDS.", mention_author=False)
+
+    @commands.command(hidden=True, name="localclear")
+    @commands.is_owner()
+    async def clear_commands_local(self, ctx: commands.Context):
+        self.bot.tree.clear_commands(guild=ctx.guild)
+        await self.bot.tree.sync(guild=ctx.guild)
+        await ctx.reply(f"CLEARED LOCAL TREE OF COMMANDS.", mention_author=False)
+        
 async def setup(bot : commands.Bot):
     await bot.add_cog(Admin(bot))

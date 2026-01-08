@@ -301,7 +301,20 @@ class Profiles(commands.Cog):
         stat_abbrev: str, 
         stat_value: str
     ):
-    
+        """Changes the decorative custom stat
+
+        Parameters
+        -----------
+        search_id: str
+            the id of the party member to be retrieved; defaults to yours if left empty
+        stat_name: str
+            the full name of the stat
+        stat_abbrev: str
+            the abbreviated name of the stat
+        stat_value: str
+            the value of the stat
+        """
+
         async def validate():
             return (
                 await validate_length(ctx, "CUSTOM STAT NAME", self.min_stat_name_len, self.max_stat_name_len, stat_name) and
@@ -318,13 +331,24 @@ class Profiles(commands.Cog):
 
     @commands.hybrid_command(name='editdecorators')
     @app_commands.autocomplete(search_id=chara_id_autocomplete)
-    async def change_theurgia(
+    async def change_decorators(
         self, 
         ctx: commands.Context, 
         search_id: Annotated[str, lambda s: s.lower()], 
         left: str, 
         right: str
     ):
+        """Changes the decorators on the special skill gauge
+
+        Parameters
+        -----------
+        search_id: str
+            the id of the party member to be retrieved; defaults to yours if left empty
+        left: str
+            the left decorator
+        right: str
+            the right decorator
+        """
         
         async def validate():
             return (
