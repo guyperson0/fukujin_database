@@ -31,6 +31,9 @@ class FukujinDatabaseManager():
         )
         self.members = MemberManager(config_path)
 
+    def get_database_name(self):
+        return self.config['name']
+
     def get_party_info(self):
         return self.party.get_party_info()
 
@@ -66,6 +69,11 @@ class FukujinDatabaseManager():
             return False
         else:
             return True
+
+    def hidden(self, search_id):
+        if not self.exists(search_id):
+            return False
+        return self.profiles.hidden(search_id)
 
     def is_admin(self, member_id):
         return self.members.is_admin(member_id)

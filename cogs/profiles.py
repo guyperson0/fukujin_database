@@ -1,4 +1,5 @@
 import asyncio
+from re import L
 import discord
 import requests
 from typing import List, Optional, Annotated, Callable
@@ -6,6 +7,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from database_bot import DatabaseBot
+from util.paginator import Paginator
 from util.utils import *
 
 display = load_json("en.json")
@@ -75,7 +77,7 @@ class Profiles(commands.Cog):
 
     @commands.hybrid_command(name="view")
     @app_commands.autocomplete(search_id=chara_id_autocomplete, search_type=search_type_autocomplete)
-    async def view_profile(
+    async def view_profile( 
         self, 
         ctx: commands.Context, 
         search_id: Optional[str], 
@@ -108,10 +110,27 @@ class Profiles(commands.Cog):
             await send_error(ctx, "NO SUCH PROFILE", f"PROFILE `{search_id}` DOES NOT EXIST.")
             return
 
-        p = self.bot.database.get_profile(search_id)
-        _embed = self.__assemble_profile(p, search_type, search_fields)
-        
-        await ctx.reply(embed=_embed, mention_author=False, ephemeral=ephemeral)
+        ids = self.bot.database.get_profile_ids()
+        if self.bot.database.hidden(search_id):
+            ids.append(search_id)
+            
+        def get_page(index: int):
+            page = assemble_profile(self.bot.database.get_profile(ids[index]), search_type, search_fields)
+            if page.footer.text:
+                page.set_footer(text=f"Page {index+1} / {len(ids)} - {page.footer.text}")
+            else:
+                page.set_footer(text=f"Page {index+1} / {len(ids)}")
+            return page
+
+        initial_page = ids.index(search_id)
+        paginator = Paginator(len(ids), get_page, index=initial_page)
+        msg = await ctx.reply(
+            embed=paginator.get_page(initial_page),
+            mention_author=False,
+            ephemeral=ephemeral,
+            view=paginator
+        )
+        paginator.msg = msg
 
     @commands.hybrid_command(name='allocate')
     @app_commands.autocomplete(search_id=chara_id_autocomplete)
@@ -363,27 +382,6 @@ class Profiles(commands.Cog):
 
         await self.edit_command(ctx, search_id, validate, confirm_msg, edit_database)
 
-    def __assemble_profile(self, profile, search_type, search_fields):
-        search_fields = [x.lower() for x in search_fields]
-
-        match search_type.lower():
-            case None | "all":
-                return construct_embed(profile)
-            case "short":
-                return construct_embed(profile, persona_skills = False, team_skills = False)
-            case "only" | "omit":
-                omit = search_type == "omit"
-                return construct_embed(profile,
-                    persona = ("persona" in search_fields) ^ omit,
-                    stats = ("stats" in search_fields) ^ omit,
-                    theurgia = ("theurgia" in search_fields) ^ omit,
-                    equipment = ("equipment" in search_fields or "equips" in search_fields) ^ omit,
-                    persona_skills = ("skills" in search_fields or "persona_skills" in search_fields) ^ omit,
-                    team_skills = ("team_skills" in search_fields) ^ omit
-                )
-            case _:
-                return construct_embed(profile)
-
     async def edit_after_confirm(
         self, 
         ctx : commands.Context, 
@@ -482,6 +480,27 @@ class Profiles(commands.Cog):
             
             chara_id = self.user_locks.pop(user_id)
             self.chara_locks.pop(chara_id)
+
+def assemble_profile(profile, search_type, search_fields):
+    search_fields = [x.lower() for x in search_fields]
+
+    match search_type.lower():
+        case None | "all":
+            return construct_embed(profile)
+        case "short":
+            return construct_embed(profile, persona_skills = False, team_skills = False)
+        case "only" | "omit":
+            omit = search_type == "omit"
+            return construct_embed(profile,
+                persona = ("persona" in search_fields) ^ omit,
+                stats = ("stats" in search_fields) ^ omit,
+                theurgia = ("theurgia" in search_fields) ^ omit,
+                equipment = ("equipment" in search_fields or "equips" in search_fields) ^ omit,
+                persona_skills = ("skills" in search_fields or "persona_skills" in search_fields) ^ omit,
+                team_skills = ("team_skills" in search_fields) ^ omit
+            )
+        case _:
+            return construct_embed(profile)
 
 def add_member_info(embed, profile, add_icon=True):
     profile_icon = None

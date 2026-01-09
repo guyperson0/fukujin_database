@@ -14,7 +14,7 @@
     "skill_bullet": "❖ ",
     "team_skill_bullet": "❖ ",
     "pending_stat": "**{pending}** Stat Points to allocate",
-    "pending_footer": "Pending: {stats} Stat Points | {other}",
+    "pending_footer": "",
     "empty": "None",
     "neutral": "Neutral to All",
 
