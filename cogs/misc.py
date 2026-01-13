@@ -1,14 +1,32 @@
+import pathlib
 from discord import File, app_commands, Interaction
 from typing import Optional, List
 import os
 import random
 from discord.ext import commands
+from discord import Interaction
+
+from project import PROJECT_PATH
+
+
 
 class Misc(commands.Cog):
     def __init__(self, bot : commands.bot):
         self.bot = bot
-        self.media_dir = "../media"
+        self.godroll_dir = PROJECT_PATH / "media/god_roll"
     
+    async def godroll_autocomplete(
+        self,
+        interaction: Interaction,
+        current: str,
+    ) -> List[app_commands.Choice[str]]:
+        options = [x.relative_to(self.godroll_dir).name for x in self.godroll_dir.glob('*') if x.is_dir()][1:]
+
+        return [
+            app_commands.Choice(name=subdir, value=subdir)
+            for subdir in options[:25] if current.lower() in subdir.lower()
+        ]
+
     @commands.hybrid_command()
     async def isopod(self, ctx : commands.Context):
         """real isopod hours"""
@@ -20,34 +38,22 @@ class Misc(commands.Cog):
         await ctx.reply("https://media.discordapp.net/attachments/957078513603710976/1347638736858517534/makesweet-q12te0.gif", mention_author=False)
 
     @commands.hybrid_command(name="godroll")
+    @app_commands.autocomplete(subdir=godroll_autocomplete)
     async def send_god_roll_gif(self, ctx : commands.Context, subdir : Optional[str]):
-        path = random_image(f"{self.media_dir}/god_roll", subdir)
+        path = random_image(self.godroll_dir, subdir)
 
         if path:
-            file = File(path)   
-            await ctx.reply(file=file, mention_author = False)
+            image = File(path)   
+            await ctx.reply(file=image, mention_author = False)
         else:
             await ctx.reply("NO GOD ROLL FOR YOU", mention_author = False)
 
-def random_image(dir : str, subdir = None):
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    search_dir = os.path.abspath(os.path.join(base_dir, dir))
-    
-    image_files = []
+def random_image(dir : pathlib.Path, subdir = None):
+    search_dir = dir
+    if search_dir.joinpath(subdir).exists():
+        search_dir = search_dir / subdir
 
-    if subdir and os.path.exists(os.path.join(search_dir, subdir)):
-        search_dir = os.path.join(search_dir, subdir)
-
-    for root, _, files in os.walk(search_dir):
-        for file in files:
-            name, ext = os.path.splitext(file)
-            if ext.lower() in ('.png', '.jpg', '.jpeg', '.webp', '.gif'):
-                image_files.append(os.path.join(root, file))
-
-    if not image_files:
-        return None
-    
-    return random.choice(image_files)
+    return random.choice([x for x in search_dir.glob('**') if x.suffix.lower() in ('.png', '.jpg', '.jpeg', '.webp', '.gif')])
 
 async def setup(bot : commands.Bot):
     await bot.add_cog(Misc(bot))
