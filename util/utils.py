@@ -1,14 +1,14 @@
 import json
-import os
 import time
 import re
+from project import PROJECT_PATH
 
 color_regex = r'^#?([0-9a-f]{3}){1,2}$' 
 
-def load_json(filename, encoding="utf8") -> dict:
-    script_dir = os.path.abspath(os.curdir)
-    abs_file_path = os.path.join(script_dir, filename)
-    with open(abs_file_path, 'r', encoding=encoding) as f:
+def load_json(filepath, encoding="utf8") -> dict:
+    file = PROJECT_PATH / filepath
+    
+    with open(file, 'r', encoding=encoding) as f:
         file = json.loads(f.read())
     
     return file

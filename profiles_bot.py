@@ -1,8 +1,10 @@
 import os
+import pathlib
 import sys
 import discord
 import asyncio
 
+from project import PROJECT_PATH
 from util.utils import load_json, timestamp_print
 from database_bot import DatabaseBot
 
@@ -14,7 +16,7 @@ intents.members = True
 intents.message_content = True
 
 async def load_cogs():
-    for filename in os.listdir("./cogs"):
+    for filename in os.listdir(PROJECT_PATH / "cogs"):
         if filename.endswith(".py"):
             try:
                 await bot.load_extension(f"cogs.{filename[:-3]}")

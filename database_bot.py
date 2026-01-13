@@ -1,6 +1,7 @@
 from discord.ext import commands
 import gspread
 
+from project import PROJECT_PATH
 from util.database_manager import FukujinDatabaseManager
 from util.utils import timestamp_print, send_error
 from traceback import print_exception
@@ -8,7 +9,7 @@ from traceback import print_exception
 class DatabaseBot(commands.Bot):
     def __init__(self, config_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.gc = gspread.service_account(filename="sheets/credentials/service_account.json")
+        self.gc = gspread.service_account(filename=PROJECT_PATH / "sheets/credentials/service_account.json")
         self.set_database(config_name)
         
     def set_database(self, config_name):
