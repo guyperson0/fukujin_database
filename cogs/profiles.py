@@ -1,4 +1,7 @@
 import asyncio
+from ctypes.wintypes import SHORT
+from enum import Enum, StrEnum, auto
+from multiprocessing import Value
 from re import L
 import discord
 import requests
@@ -10,20 +13,16 @@ from database_bot import DatabaseBot
 from util.paginator import Paginator
 from util.utils import *
 
-display = load_json("en.json")
+display: dict[str, str] = load_json("en.json")
 
 def unhide(input : str):
     return str.lower(input) == "unhide"
 
-async def search_type_autocomplete(
-    interaction: discord.Interaction,
-    current: str,
-) -> List[app_commands.Choice[str]]:
-    search_types = ["all", "short", "omit", "only"]
-    return [
-        app_commands.Choice(name=search_type, value=search_type)
-        for search_type in search_types if current.lower() in search_type.lower()
-    ]
+class SearchType(StrEnum):
+    ALL = auto()
+    SHORT = auto()
+    OMIT = auto()
+    ONLY = auto()
 
 class Profiles(commands.Cog):
     def __init__(self, bot : DatabaseBot):
@@ -32,11 +31,11 @@ class Profiles(commands.Cog):
         self.user_locks = {}
         self.chara_locks = {}
         self.lock = asyncio.Lock()
-
+        
         self.allow_deallocate = False
 
         self.min_display_name_len = 3
-        self.max_display_name_len = 32
+        self.max_display_name_len = 48
         
         self.min_stat_name_len = 1
         self.max_stat_name_len = 16
@@ -57,8 +56,8 @@ class Profiles(commands.Cog):
         return [
             app_commands.Choice(name=id, value=id)
             for id in chara_ids if current.lower() in id.lower()
-        ]
-
+        ][:25]
+    
     @commands.hybrid_command(name="list")
     async def profiles(
         self, 
@@ -76,14 +75,14 @@ class Profiles(commands.Cog):
         await ctx.reply(response, mention_author=False, ephemeral=ephemeral)
 
     @commands.hybrid_command(name="view")
-    @app_commands.autocomplete(search_id=chara_id_autocomplete, search_type=search_type_autocomplete)
+    @app_commands.autocomplete(search_id=chara_id_autocomplete)
     async def view_profile( 
         self, 
         ctx: commands.Context, 
         search_id: Optional[str], 
-        search_type: Optional[str] = "short", 
+        search_type: Optional[SearchType] = SearchType.ONLY,
         *,
-        search_fields: Annotated[str, lambda s: s.lower().split(' ')] = [""],
+        search_fields: Annotated[str, lambda s: s.lower().split(' ')] = ["persona", "stats", "theurgia", "equips", "skills"],
         ephemeral: Optional[bool] = True
     ):
         """Retrieves the profile of a party member
@@ -207,6 +206,7 @@ class Profiles(commands.Cog):
         self, 
         ctx : commands.Context, 
         search_id : Annotated[str, lambda s: s.lower()], 
+        *,
         display : str
     ):
         """Changes the display name of the profile (does not change in battle)
@@ -481,16 +481,12 @@ class Profiles(commands.Cog):
             chara_id = self.user_locks.pop(user_id)
             self.chara_locks.pop(chara_id)
 
-def assemble_profile(profile, search_type, search_fields):
-    search_fields = [x.lower() for x in search_fields]
-
-    match search_type.lower():
-        case None | "all":
-            return construct_embed(profile)
-        case "short":
+def assemble_profile(profile, search_type: SearchType, search_fields):
+    match search_type:
+        case SearchType.SHORT:
             return construct_embed(profile, persona_skills = False, team_skills = False)
-        case "only" | "omit":
-            omit = search_type == "omit"
+        case SearchType.ONLY | SearchType.OMIT:
+            omit = search_type == SearchType.OMIT
             return construct_embed(profile,
                 persona = ("persona" in search_fields) ^ omit,
                 stats = ("stats" in search_fields) ^ omit,
@@ -538,12 +534,16 @@ def add_stats(embed, profile):
     if not int(profile["STATS_PENDING"]) == 0:
         stats += "\n" + display["pending_stat"]
 
+    format_obj = {}
+
+    for name in ("STRENGTH", "MAGIC", "AGILITY", "ENDURANCE", "LUCK"):
+        try:
+            format_obj[name.lower()] = f"{int(profile[name]) + int(profile[f"BONUS_{name}"])} ({profile[name]})"
+        except ValueError:
+            format_obj[name.lower()] = profile[name]
+
     stats = stats.format(
-        strength = profile["STRENGTH"],
-        magic = profile["MAGIC"],
-        agility = profile["AGILITY"],
-        endurance = profile["ENDURANCE"],
-        luck = profile["LUCK"],
+        **format_obj,
         custom_value = profile["CUSTOM_STAT_VALUE"],
         custom_stat = profile["CUSTOM_STAT_SHORT"],
         pending = profile["STATS_PENDING"]
