@@ -8,7 +8,7 @@ from discord import Interaction
 
 from project import PROJECT_PATH
 
-
+# TODO: stop sending images and just send links lmao
 
 class Misc(commands.Cog):
     def __init__(self, bot : commands.bot):
