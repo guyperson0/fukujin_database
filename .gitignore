@@ -9,6 +9,6 @@ media
 sheets/credentials
 .vscode
 
-test.py
+*test*.py
 secretsanta.*
 secret_santa_*
